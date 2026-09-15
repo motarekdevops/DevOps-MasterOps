@@ -17,36 +17,49 @@ SITES_ENABLED="/etc/nginx/sites-enabled"
 BACKEND_CONF_NAME="backend.conf"
 FRONTEND_CONF_NAME="frontend.conf"
 
-# --- 1. Create Nginx config files (fixed template -- engineer fills in
-# the domain and file name placeholders manually afterwards) ---
+# --- 1. Collect domain and project name, then generate Nginx config
+# files from template. Backend and frontend get distinct server_names
+# (api.<domain> vs <domain>/www.<domain>) to avoid nginx server_name
+# conflicts when both vhosts listen on the same port. ---
+read -rp "Enter your domain (e.g. example.com): " SITE_DOMAIN
+[[ -z "$SITE_DOMAIN" ]] && mops_die "domain cannot be empty"
+
+read -rp "Enter your project folder name under /var/www/ (e.g. myapp): " SITE_PROJECT
+[[ -z "$SITE_PROJECT" ]] && mops_die "project name cannot be empty"
+
+BACKEND_DOMAIN="api.$SITE_DOMAIN"
+mops_log "backend will be served on: $BACKEND_DOMAIN"
+mops_log "frontend will be served on: $SITE_DOMAIN and www.$SITE_DOMAIN"
+
 mops_log "creating Nginx config files from template..."
 
-sudo tee "$SITES_AVAILABLE/$BACKEND_CONF_NAME" > /dev/null << 'CONFEOF'
+sudo tee "$SITES_AVAILABLE/$BACKEND_CONF_NAME" > /dev/null << CONFEOF
 server {
     listen 80;
-    server_name (Enter Your Website Domain  *.Enter Your Website Domain);
+    server_name $BACKEND_DOMAIN;
 
-    root /var/www/"FILE NAME"/Public;
+    root /var/www/$SITE_PROJECT/Public;
     index index.php;
 }
 CONFEOF
 mops_ok "wrote: $SITES_AVAILABLE/$BACKEND_CONF_NAME"
 
-sudo tee "$SITES_AVAILABLE/$FRONTEND_CONF_NAME" > /dev/null << 'CONFEOF'
+sudo tee "$SITES_AVAILABLE/$FRONTEND_CONF_NAME" > /dev/null << CONFEOF
 server {
     listen 80;
-    server_name (Enter Your Website Domain  *.Enter Your Website Domain);
+    server_name $SITE_DOMAIN www.$SITE_DOMAIN;
 
-    root /var/www/"FILE NAME"/Public;
+    root /var/www/$SITE_PROJECT/Public;
     index index.php;
 }
 CONFEOF
 mops_ok "wrote: $SITES_AVAILABLE/$FRONTEND_CONF_NAME"
 
-mops_log "edit both files now and replace the placeholders before continuing:"
-mops_log "  $SITES_AVAILABLE/$BACKEND_CONF_NAME"
-mops_log "  $SITES_AVAILABLE/$FRONTEND_CONF_NAME"
-read -rp "Press Enter once you've finished editing both config files... " _
+mops_log "generated config files:"
+mops_log "  $SITES_AVAILABLE/$BACKEND_CONF_NAME (server_name: $BACKEND_DOMAIN)"
+mops_log "  $SITES_AVAILABLE/$FRONTEND_CONF_NAME (server_name: $SITE_DOMAIN www.$SITE_DOMAIN)"
+mops_log "review them now if you'd like to customize further (e.g. separate document roots)."
+read -rp "Press Enter to continue... " _
 
 # --- 2. Link the conf files into sites-enabled ---
 mops_log "linking config files into sites-enabled..."
