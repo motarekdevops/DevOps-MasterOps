@@ -12,7 +12,7 @@ export MASTEROPS_HOME="$MOPS_HOME"
 source "$MOPS_HOME/cli/lib/common.sh"
 source "$MOPS_HOME/lib/db_mode.sh"
 
-readonly MOPS_VERSION="0.1.3"
+readonly MOPS_VERSION="0.1.4"
 
 usage() {
   cat <<EOF
