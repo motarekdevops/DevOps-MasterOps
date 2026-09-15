@@ -1,6 +1,6 @@
 # MasterOps
 
-**A DevOps project bootstrap package.** One command turns a fresh server or a new project into a fully provisioned, production-ready environment — the way `composer create-project laravel/laravel` gives you a working Laravel skeleton, MasterOps gives a DevOps engineer a working infrastructure skeleton.
+**The world's first dedicated bootstrap framework for DevOps engineers.** One command turns a fresh server or a new project into a fully provisioned, production-ready environment — the way `composer create-project laravel/laravel` gives you a working Laravel skeleton, MasterOps gives a DevOps engineer a working infrastructure skeleton, end to end.
 
 ```bash
 sudo apt update && sudo apt install masterops
@@ -8,6 +8,19 @@ masterops new my-project --preset=laravel-postgres-react
 ```
 
 No engineer should start a new project or join a new server by writing VPC code, Nginx configs, or CI pipelines from scratch again. MasterOps installs the scaffolding. The engineer only edits variables and decides what actually runs.
+
+Where other tools give you scattered scripts or ad-hoc Ansible playbooks, MasterOps packages the entire DevOps setup lifecycle — infra, stacks, web server, CI, security, backups — into one versioned, installable, idempotent CLI. That's the gap it fills: DevOps engineers have never had a `create-project`-style tool built specifically for their own workflow, the way frontend and backend engineers have had for years.
+
+---
+
+## Current status: v0.1.3 (MVP, in progress)
+
+MasterOps is real and installable today via a private APT repository, with a working CLI and a full Laravel + PostgreSQL + React preset that provisions and starts Nginx end to end. It is under active development — Terraform infrastructure modules (VPC, Subnets, Security Groups, IAM, EC2, ALB) are the next major piece being wired in, per the roadmap below.
+
+```bash
+masterops --version   # masterops v0.1.3
+masterops doctor       # pre-flight server readiness check
+```
 
 ---
 
@@ -26,7 +39,7 @@ Every new project or new hire at a company repeats the same setup work: VPC, sub
 3. **Presets, not manual assembly.** A preset (e.g. `laravel-postgres-react`) is a YAML file that wires together the modules a typical project needs, so the engineer runs one command instead of assembling pieces.
 4. **Nothing auto-starts.** Installing a stack prepares config and compose files. Starting a service is always a separate, explicit command.
 5. **Idempotency everywhere.** Every script in every module must be safe to run twice. This is what makes the tool trustworthy enough to run against a live server.
-6. **One `main.tf` to edit.** All Terraform modules are pre-wired; the engineer only ever touches `variables.tf` and `terraform.tfvars`.
+6. **One `main.tf` to edit.** All Terraform modules are pre-wired; the engineer only ever touches `variables.tf` and `terraform.tfvars`. *(Terraform layer: in progress — see roadmap.)*
 
 ---
 
@@ -42,6 +55,7 @@ masterops/
 │   │   ├── new.sh                    # masterops new <project>
 │   │   ├── add.sh                    # masterops add postgres|redis|nginx
 │   │   ├── start.sh                  # masterops start <service>   (explicit only)
+│   │   ├── nginx.sh                  # masterops nginx --start     (interactive domain setup)
 │   │   ├── deploy.sh                 # masterops deploy --env=production
 │   │   ├── doctor.sh                 # pre-flight server checks
 │   │   ├── diff.sh                   # drift detection
@@ -49,7 +63,7 @@ masterops/
 │   │   └── upgrade.sh                # bump stack versions per project
 │   └── lib/                          # shared helpers: logging, prompts, validation
 │
-├── terraform/
+├── terraform/                        # in progress
 │   ├── main.tf                       # the ONLY file engineers wire modules in
 │   ├── variables.tf                  # the ONLY file engineers edit day-to-day
 │   ├── outputs.tf
@@ -107,8 +121,9 @@ masterops/
 │   └── python-postgres.yaml
 │
 ├── packaging/
-│   ├── debian/                       # .deb control files / fpm config
-│   └── repo/                         # APT repo publishing scripts
+│   ├── build-deb.sh                  # builds the .deb via fpm
+│   ├── upload-package.sh             # publishes the .deb to the Buildkite Package Registry
+│   └── debian/                       # postinstall scripts / fpm control files
 │
 └── masterops.yaml                    # generated per-project: records stack versions in use
 ```
@@ -117,23 +132,23 @@ masterops/
 
 ## 4. Full module list
 
-| Category | Modules |
-|---|---|
-| Infra (Terraform) | VPC, Subnets, Security Groups, IAM, EC2, ALB |
-| Scripting | Bash helper library shared across all stacks |
-| Databases | PostgreSQL, MySQL |
-| Backend | Laravel (PHP), Python3 |
-| Frontend | ReactJS |
-| Containers | Docker, Kubernetes, Helm (standard chart structure) |
-| Web server | Nginx (native install on the server, not container-only) |
-| Process management | Cron jobs, Supervisor jobs |
-| Security | Bash-based security check scripts |
-| Backup | Daily backup job to S3 |
-| Monitoring / Alerts | Server health checks pushed to email / Telegram |
-| Diagnostics | `masterops doctor` (pre-install server readiness check) |
-| Consistency | `masterops diff` (drift detector: local config vs. live server) |
-| Secrets | Unified `.env.vault` layer (age/sops-encrypted), read by every stack |
-| Versioning | `masterops.yaml` per-project stack version lock + `masterops upgrade` |
+| Category | Modules | Status |
+|---|---|---|
+| Infra (Terraform) | VPC, Subnets, Security Groups, IAM, EC2, ALB | In progress |
+| Scripting | Bash helper library shared across all stacks | Shipped |
+| Databases | PostgreSQL, MySQL | Shipped |
+| Backend | Laravel (PHP), Python3 | Laravel shipped, Python3 planned |
+| Frontend | ReactJS | Shipped |
+| Containers | Docker, Kubernetes, Helm (standard chart structure) | Docker compose fragments shipped, K8s/Helm planned |
+| Web server | Nginx (native install on the server, not container-only) | Shipped, interactive domain setup |
+| Process management | Cron jobs, Supervisor jobs | Planned |
+| Security | Bash-based security check scripts | Planned |
+| Backup | Daily backup job to S3 | Planned |
+| Monitoring / Alerts | Server health checks pushed to email / Telegram | Planned |
+| Diagnostics | `masterops doctor` (pre-install server readiness check) | Shipped |
+| Consistency | `masterops diff` (drift detector: local config vs. live server) | Planned |
+| Secrets | Unified `.env.vault` layer (age/sops-encrypted), read by every stack | Planned |
+| Versioning | `masterops.yaml` per-project stack version lock + `masterops upgrade` | Planned |
 
 ---
 
@@ -143,6 +158,7 @@ masterops/
 masterops new <project> --preset=<preset-name>   # scaffold a new project locally
 masterops add <stack>                             # add a stack to an existing project
 masterops start <service>                         # explicitly start a service/container
+masterops nginx --start                           # interactive Nginx vhost + SSL setup
 masterops doctor                                  # check server readiness before install
 masterops diff                                    # show drift between local config and server
 masterops deploy --env=<environment>               # provision + deploy to a server
@@ -154,12 +170,17 @@ masterops upgrade                                 # bump a project's stacks to n
 
 ## 6. Distribution
 
-MasterOps ships as a real Debian package through a private APT repository (via Packagecloud/Cloudsmith initially, or self-hosted with `aptly`/`reprepro` later), so installation on any server is:
+MasterOps ships as a real Debian package, built and published automatically on every push via Buildkite CI, through a self-hosted Buildkite Package Registry:
 
 ```bash
-curl -s https://packagecloud.io/install/repositories/<you>/masterops/script.deb.sh | sudo bash
-sudo apt install masterops
+curl -fsSL "https://packages.buildkite.com/mohamed-tarek/masterops/gpgkey" | sudo gpg --dearmor -o /etc/apt/keyrings/mohamed-tarek_masterops-archive-keyring.gpg
+
+echo "deb [signed-by=/etc/apt/keyrings/mohamed-tarek_masterops-archive-keyring.gpg] https://packages.buildkite.com/mohamed-tarek/masterops/any/ any main" | sudo tee /etc/apt/sources.list.d/buildkite-mohamed-tarek-masterops.list
+
+sudo apt update && sudo apt install masterops
 ```
+
+Every commit to `main` triggers a Buildkite pipeline that builds the `.deb` with `fpm` and publishes it straight to the registry — no manual release step.
 
 ---
 
@@ -168,14 +189,15 @@ sudo apt install masterops
 ### Phase 1 — MVP (real, runnable, not a demo)
 Goal: an engineer can install MasterOps via `apt` and get a working, deployable skeleton for one real stack combination.
 
-- [ ] `masterops` CLI skeleton (`new`, `add`, `start`, `doctor`)
-- [ ] Debian packaging + private APT repo, installable end-to-end
+- [x] `masterops` CLI skeleton (`new`, `add`, `start`, `doctor`)
+- [x] Debian packaging + private APT repo, installable end-to-end
+- [x] CI/CD: Buildkite pipeline that builds and publishes the `.deb` on every push
 - [ ] Terraform: VPC, Subnets, Security Groups, IAM, EC2, ALB modules + unified `main.tf`/`variables.tf`
-- [ ] Docker stack (base, non-root, multi-stage)
-- [ ] Nginx native server install
-- [ ] One full preset working end-to-end: **Laravel + PostgreSQL + React**
-- [ ] `masterops doctor` (RAM, ports, Docker version checks)
-- [ ] Basic idempotency testing on every script
+- [x] Docker stack (base, non-root, multi-stage)
+- [x] Nginx native server install, interactive domain + SSL setup
+- [x] One full preset working end-to-end: **Laravel + PostgreSQL + React**
+- [x] `masterops doctor` (RAM, ports, Docker version checks)
+- [ ] Full idempotency testing on every script
 
 ### Phase 2 — V1 (full package, refactor from MVP learnings)
 - [ ] MySQL stack
