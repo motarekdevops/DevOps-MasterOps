@@ -9,21 +9,6 @@ steps:
   - wait
 
   - label: ":rocket: Upload to Package Registry"
-    command: |
-      set -e
-      echo "=== pwd ==="
-      pwd
-      echo "=== downloading ==="
-      buildkite-agent artifact download "masterops_*.deb" .
-      echo "=== listing files ==="
-      ls -la masterops_*.deb
-      DEB_FILE=$(ls masterops_*.deb)
-      echo "=== DEB_FILE=[$DEB_FILE] ==="
-      echo "=== token length check ==="
-      echo -n "$BUILDKITE_PACKAGES_TOKEN" | wc -c
-      curl -sS -w "\nHTTP_STATUS:%{http_code}\n" -X POST \
-        -H "Authorization: Bearer $BUILDKITE_PACKAGES_TOKEN" \
-        -F "file=@${DEB_FILE}" \
-        "https://api.buildkite.com/v2/packages/organizations/mohamed-tarek/registries/masterops/packages"
+    command: "bash packaging/upload-package.sh"
     agents:
       queue: "masterops"
