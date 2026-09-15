@@ -63,18 +63,16 @@ masterops/
 │   │   └── upgrade.sh                # bump stack versions per project
 │   └── lib/                          # shared helpers: logging, prompts, validation
 │
-├── terraform/                        # in progress
+├── terraform/                        # shipped: VPC/EC2/IAM/S3, Route53 optional
 │   ├── main.tf                       # the ONLY file engineers wire modules in
 │   ├── variables.tf                  # the ONLY file engineers edit day-to-day
-│   ├── outputs.tf
 │   ├── terraform.tfvars.example
 │   └── modules/
-│       ├── vpc/
-│       ├── subnets/
-│       ├── security-groups/
-│       ├── iam/
-│       ├── ec2/
-│       └── alb/
+│       ├── vpc/                      # VPC, public/private subnets, IGW, route tables
+│       ├── ec2/                      # security group, instance, Ubuntu AMI lookup
+│       ├── iam/                      # least-privilege EC2 instance role + profile
+│       ├── s3/                       # encrypted, versioned, private-by-default bucket
+│       └── route53/                  # optional -- only created if domain_name is set
 │
 ├── stacks/
 │   ├── database/
@@ -134,7 +132,7 @@ masterops/
 
 | Category | Modules | Status |
 |---|---|---|
-| Infra (Terraform) | VPC, Subnets, Security Groups, IAM, EC2, ALB | In progress |
+| Infra (Terraform) | VPC, EC2 (+ security group), IAM (instance role), S3 (encrypted, private), Route53 (optional DNS) | Shipped |
 | Scripting | Bash helper library shared across all stacks | Shipped |
 | Databases | PostgreSQL, MySQL | Shipped |
 | Backend | Laravel (PHP), Python3 | Laravel shipped, Python3 planned |
@@ -184,7 +182,39 @@ Every commit to `main` triggers a Buildkite pipeline that builds the `.deb` with
 
 ---
 
-## 7. Roadmap
+## 7. Infrastructure (Terraform)
+
+Terraform provisions the AWS infrastructure a project runs on: a VPC with public/private subnets, an EC2 instance with a least-privilege IAM role, an encrypted S3 bucket, and (optionally) DNS records in an existing Route53 hosted zone.
+
+**This step always runs on the engineer's own machine, never on a server.** `masterops terraform --start` refuses to run if it detects it's on a live EC2 instance (it checks the AWS instance metadata service), and asks for manual confirmation before doing anything.
+
+```bash
+masterops terraform --start   # copies the Terraform module tree into ./terraform
+cd terraform
+cp terraform.tfvars.example terraform.tfvars   # done automatically by --start
+# edit terraform.tfvars: project_name, key_name, allowed_ssh_cidr, domain_name...
+terraform init
+terraform plan
+terraform apply
+```
+
+Once `apply` finishes, take the public IP from the output, SSH into the new server, and run `sudo apt install masterops -y` to continue setup on the server itself (Nginx, Docker, app stacks).
+
+**What each module does:**
+
+| Module | Creates | Notes |
+|---|---|---|
+| `vpc` | VPC, public + private subnets, Internet Gateway, route tables | One public/private subnet pair per AZ in `var.azs` |
+| `ec2` | Security group (22/80/443 inbound), instance, Ubuntu 24.04 AMI lookup | AMI resolved via Canonical's official SSM parameter, not a name filter, so it keeps working if AMI naming changes again |
+| `iam` | EC2 instance role + profile, CloudWatch agent policy attached | No S3/other access by default — attach more policies to the role as your app needs grow |
+| `s3` | Private, versioned, AES-256 encrypted bucket | Public access fully blocked; `prevent_destroy` set so `terraform destroy` won't silently delete it |
+| `route53` | A records pointing at the instance's public IP | Only created if `domain_name` is set in `terraform.tfvars`; requires the domain to already be delegated to a Route53 hosted zone |
+
+**⚠️ Security note:** `allowed_ssh_cidr` defaults to `0.0.0.0/0` (SSH open to the whole internet) so a first `terraform plan` works out of the box. **Before running `apply` on anything beyond a quick throwaway test, set it to your own IP** (e.g. `"203.0.113.5/32"`) in `terraform.tfvars`.
+
+---
+
+## 8. Roadmap
 
 ### Phase 1 — MVP (real, runnable, not a demo)
 Goal: an engineer can install MasterOps via `apt` and get a working, deployable skeleton for one real stack combination.
@@ -192,7 +222,7 @@ Goal: an engineer can install MasterOps via `apt` and get a working, deployable 
 - [x] `masterops` CLI skeleton (`new`, `add`, `start`, `doctor`)
 - [x] Debian packaging + private APT repo, installable end-to-end
 - [x] CI/CD: Buildkite pipeline that builds and publishes the `.deb` on every push
-- [ ] Terraform: VPC, Subnets, Security Groups, IAM, EC2, ALB modules + unified `main.tf`/`variables.tf`
+- [x] Terraform: VPC, EC2, IAM, S3, and optional Route53 modules, wired through a single `main.tf`/`variables.tf`
 - [x] Docker stack (base, non-root, multi-stage)
 - [x] Nginx native server install, interactive domain + SSL setup
 - [x] One full preset working end-to-end: **Laravel + PostgreSQL + React**
@@ -215,8 +245,8 @@ Goal: an engineer can install MasterOps via `apt` and get a working, deployable 
 
 ---
 
-## 8. Notes
-All rights belong to @motarekdevops
+## 9. Notes
+Copyright (c) 2026 Mohamed Tarek - Nexus Smart Solution. All rights reserved. See [LICENSE](./LICENSE).
 - MVP is scoped to be genuinely usable on a real project, not a proof of concept — it should be dogfooded on an actual client project as soon as it lands.
 - V1 is treated as a refactor pass informed by real MVP usage, not a from-scratch rebuild.
 - Every module must remain independently testable and independently versioned.

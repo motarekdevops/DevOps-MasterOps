@@ -12,3 +12,13 @@ instance_type = "t3.micro"
 # CIDR allowed to SSH into the instance.
 # For security, replace with your own IP (e.g. "203.0.113.5/32") instead of leaving it open.
 allowed_ssh_cidr = "0.0.0.0/0"
+
+# Optional: fixed S3 bucket suffix (leave empty to auto-generate)
+bucket_suffix = ""
+
+# Optional: root domain already delegated to Route53. Leave empty ("")
+# to skip DNS record creation entirely.
+domain_name = ""
+
+# Subdomains to point at the instance when domain_name is set above.
+route53_record_names = ["", "www"]

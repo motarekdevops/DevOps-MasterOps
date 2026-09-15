@@ -35,3 +35,9 @@ variable "allowed_ssh_cidr" {
   type        = string
   default     = "0.0.0.0/0"
 }
+
+variable "iam_instance_profile_name" {
+  description = "Name of an IAM instance profile to attach (optional, leave empty to skip)"
+  type        = string
+  default     = ""
+}
