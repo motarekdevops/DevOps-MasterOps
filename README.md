@@ -134,8 +134,8 @@ masterops/
 |---|---|---|
 | Infra (Terraform) | VPC, EC2 (+ security group), IAM (instance role), S3 (encrypted, private), Route53 (optional DNS) | Shipped |
 | Scripting | Bash helper library shared across all stacks | Shipped |
-| Databases | PostgreSQL, MySQL | Shipped |
-| Backend | Laravel (PHP), Python3 | Laravel shipped, Python3 planned |
+| Databases | PostgreSQL, MySQL (container + native install for both) | Shipped |
+| Backend | Laravel (PHP, container + native), Python3 | Laravel shipped, Python3 planned |
 | Frontend | ReactJS | Shipped |
 | Containers | Docker, Kubernetes, Helm (standard chart structure) | Docker compose fragments shipped, K8s/Helm planned |
 | Web server | Nginx (native install on the server, not container-only) | Shipped, interactive domain setup |
@@ -230,7 +230,7 @@ Goal: an engineer can install MasterOps via `apt` and get a working, deployable 
 - [ ] Full idempotency testing on every script
 
 ### Phase 2 — V1 (full package, refactor from MVP learnings)
-- [ ] MySQL stack
+- [x] MySQL stack (`laravel-mysql` preset, container + native install, DB vars decoupled from backend)
 - [ ] Python3 backend stack
 - [ ] Kubernetes + Helm chart structure
 - [ ] Cron job templates
