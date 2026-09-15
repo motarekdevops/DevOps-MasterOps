@@ -1,0 +1,9 @@
+  react:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ${PROJECT_NAME}_react
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${REACT_PORT:-3000}:80"
+    # Defined but NOT auto-started. Run: masterops start react

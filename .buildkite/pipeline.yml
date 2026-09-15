@@ -1,0 +1,5 @@
+steps:
+  - label: ":package: Build .deb"
+    command: "bash packaging/build-deb.sh"
+    artifact_paths:
+      - "masterops_*.deb"

@@ -1,0 +1,6 @@
+name: laravel-postgres-react
+description: Laravel API backend, PostgreSQL database, React frontend, Nginx, Docker.
+stacks:
+  - database/postgres
+  - backend/laravel
+  - frontend/reactjs

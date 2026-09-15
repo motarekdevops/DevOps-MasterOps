@@ -1,0 +1,12 @@
+  laravel:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ${PROJECT_NAME}_laravel
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./backend:/var/www/html
+    depends_on:
+      - postgres
+    # Defined but NOT auto-started. Run: masterops start laravel

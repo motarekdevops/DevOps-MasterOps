@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+MOPS_HOME="${MASTEROPS_HOME:-/usr/share/masterops}"
+SCRIPT_SOURCE_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+
+if [[ -z "${MASTEROPS_HOME:-}" ]] && [[ -f "$SCRIPT_SOURCE_DIR/../cli/lib/common.sh" ]]; then
+  MOPS_HOME="$(cd -- "$SCRIPT_SOURCE_DIR/.." >/dev/null 2>&1 && pwd)"
+fi
+export MASTEROPS_HOME="$MOPS_HOME"
+
+source "$MOPS_HOME/cli/lib/common.sh"
+source "$MOPS_HOME/lib/db_mode.sh"
+
+readonly MOPS_VERSION="0.1.2"
+
+usage() {
+  cat <<EOF
+masterops v${MOPS_VERSION}
+
+Usage:
+  masterops new <project> --preset=<preset-name>
+  masterops doctor
+  masterops version
+  masterops help
+EOF
+}
+
+[[ $# -eq 0 ]] && { usage; exit 1; }
+
+cmd="$1"; shift || true
+
+
+
+case "$cmd" in
+
+  new)
+    exec bash "$MOPS_HOME/cli/commands/new.sh" "$@"
+    ;;
+  start)
+    exec bash "$MOPS_HOME/cli/commands/start.sh" "$@"
+    ;;
+  nginx)
+    exec bash "$MOPS_HOME/cli/commands/nginx.sh" "$@"
+    ;;
+
+  doctor)
+    exec bash "$MOPS_HOME/cli/commands/doctor.sh" "$@"
+    ;;
+  version|--version|-v)
+    echo "masterops v${MOPS_VERSION}"
+    ;;
+  help|--help|-h)
+    usage
+    ;;
+  *)
+    mops_error "unknown command: $cmd"
+    usage
+    exit 1
+    ;;
+esac

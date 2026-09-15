@@ -1,0 +1,9 @@
+  nginx:
+    image: nginx:alpine
+    container_name: ${PROJECT_NAME}_nginx
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${NGINX_PORT:-8080}:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    # Defined but NOT auto-started. Run: masterops start nginx
