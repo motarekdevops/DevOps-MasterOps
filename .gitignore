@@ -1,3 +1,9 @@
 *.deb
 testproject/
 *.log
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+terraform.tfvars

@@ -14,3 +14,20 @@ variable "azs" {
   type        = list(string)
   default     = ["eu-central-1a", "eu-central-1b"]
 }
+
+variable "key_name" {
+  description = "Name of an existing EC2 key pair for SSH access"
+  type        = string
+}
+
+variable "instance_type" {
+  description = "EC2 instance type"
+  type        = string
+  default     = "t3.micro"
+}
+
+variable "allowed_ssh_cidr" {
+  description = "CIDR block allowed to SSH into the instance"
+  type        = string
+  default     = "0.0.0.0/0"
+}

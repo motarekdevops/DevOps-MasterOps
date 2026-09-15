@@ -1,3 +1,14 @@
 project_name = "my-project"
 aws_region   = "eu-central-1"
 azs          = ["eu-central-1a", "eu-central-1b"]
+
+# Name of an existing EC2 key pair in this AWS region.
+# Create one first: https://console.aws.amazon.com/ec2 -> Key Pairs -> Create
+key_name = "my-keypair-name"
+
+# EC2 instance size. t3.micro is Free Tier eligible.
+instance_type = "t3.micro"
+
+# CIDR allowed to SSH into the instance.
+# For security, replace with your own IP (e.g. "203.0.113.5/32") instead of leaving it open.
+allowed_ssh_cidr = "0.0.0.0/0"
