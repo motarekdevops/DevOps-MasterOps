@@ -20,6 +20,8 @@ masterops v${MOPS_VERSION}
 
 Usage:
   masterops new <project> --preset=<preset-name>
+  masterops terraform --start
+  masterops nginx --start
   masterops doctor
   masterops version
   masterops help
@@ -42,6 +44,9 @@ case "$cmd" in
     ;;
   nginx)
     exec bash "$MOPS_HOME/cli/commands/nginx.sh" "$@"
+    ;;
+  terraform)
+    exec bash "$MOPS_HOME/cli/commands/terraform.sh" "$@"
     ;;
 
   doctor)
