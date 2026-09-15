@@ -3,3 +3,5 @@ steps:
     command: "bash packaging/build-deb.sh"
     artifact_paths:
       - "masterops_*.deb"
+    agents:
+      queue: "masterops"
