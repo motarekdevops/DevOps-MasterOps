@@ -1,0 +1,6 @@
+name: laravel-mysql
+description: Laravel API backend, MySQL database, React frontend, Nginx, Docker.
+stacks:
+  - database/mysql
+  - backend/laravel
+  - frontend/reactjs

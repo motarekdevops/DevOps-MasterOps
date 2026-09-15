@@ -2,7 +2,7 @@ FROM php:8.3-fpm-alpine
 
 RUN apk add --no-cache \
     postgresql-dev libzip-dev icu-dev oniguruma-dev \
-    && docker-php-ext-install pdo pdo_pgsql zip intl mbstring opcache
+    && docker-php-ext-install pdo pdo_pgsql pdo_mysql zip intl mbstring opcache
 
 WORKDIR /var/www/html
 

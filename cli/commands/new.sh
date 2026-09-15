@@ -94,7 +94,7 @@ for stack in "${STACKS[@]}"; do
         NATIVE_DB_STACKS+=("$stack")
       else
         mops_log "installing $stack natively on this server..."
-        bash "$stack_dir/install-native.sh"
+        bash "$stack_dir/install-native.sh" || mops_warn "native install failed for $stack -- scaffold continues; retry manually: bash $stack_dir/install-native.sh"
       fi
     else
       mops_warn "$stack has no install-native.sh, falling back to container"
@@ -139,7 +139,7 @@ for stack in "${NATIVE_DB_STACKS[@]}"; do
   stack_dir="$MASTEROPS_HOME/stacks/$stack"
 
   mops_log "installing $db_name natively on this server..."
-  bash "$stack_dir/install-native.sh" "$ENV_FILE"
+  bash "$stack_dir/install-native.sh" "$ENV_FILE" || mops_warn "native install failed for $stack -- scaffold continues; retry manually: bash $stack_dir/install-native.sh $ENV_FILE"
 
   sed -i "s/^DB_HOST=${db_name}\$/DB_HOST=127.0.0.1/" "$ENV_FILE"
   sed -i "/^\\s*-\\s*${db_name}\\s*$/d" "$COMPOSE_FILE"
