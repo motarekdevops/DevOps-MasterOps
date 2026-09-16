@@ -1,12 +1,33 @@
 # MasterOps 🚀
 
+<div align="center">
+  <img src="public/src/SystemDesign.png" alt="MasterOps System Design" width="800">
+  <p><i>The blueprint of production-grade environment automation.</i></p>
+</div>
+
 **MasterOps** is a production-grade DevOps bootstrap CLI designed to eliminate the manual toil of setting up application environments on Linux servers. It transforms the "Day 1" experience from a series of manual steps into a single, idempotent command.
 
-Instead of just creating skeletons, MasterOps provisions **real** environments: it detects the required runtime, installs the correct SDK/version, restores dependencies, builds the application, configures systemd services, and sets up Nginx reverse proxies.
+---
 
 ## 🎯 Why MasterOps?
 
-Setting up a production server typically involves dozens of repetitive tasks: installing runtimes, configuring databases, tweaking Nginx, and setting up systemd. MasterOps automates this entire chain, ensuring that every environment is consistent, secure, and runnable from the very first second.
+Setting up a production server typically involves dozens of repetitive tasks. MasterOps automates this entire chain, ensuring that every environment is consistent, secure, and runnable from the very first second.
+
+### 📊 The Efficiency Graph
+```mermaid
+graph TD
+    A[Manual Setup] --> B(Install SDKs)
+    B --> C(Configure DB)
+    C --> D(Setup Nginx)
+    D --> E(Systemd Config)
+    E --> F[~4 Hours Total]
+    
+    G[MasterOps] --> H(One Command)
+    H --> I[~11 Minutes Total]
+    
+    style G fill:#f9f,stroke:#333,stroke-width:4px
+    style I fill:#00ff00,stroke:#333,stroke-width:2px
+```
 
 **Key Benefits:**
 - **Zero-Configuration Start**: Go from a blank server to a running app in minutes.
@@ -17,6 +38,10 @@ Setting up a production server typically involves dozens of repetitive tasks: in
 ---
 
 ## 📦 Installation
+
+<div align="center">
+  <img src="public/src/WhatsApp Image 2026-09-15 at 4.58.59 PM.jpeg" alt="MasterOps Preview" width="600" style="border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
+</div>
 
 ### 1. Debian Package (Recommended)
 The fastest way to install MasterOps is via the official `.deb` package:
@@ -39,57 +64,56 @@ export MASTEROPS_HOME=$(pwd)
 
 | Command | Description | Example |
 | :--- | :--- | :--- |
-| `start` | **The Day 1 Wizard**. Provisions a full project environment including runtime, DB, and Nginx. | `masterops start my-app` |
-| `diff` | **Drift Detection**. Compares actual system state against the desired configuration. | `masterops diff my-app` |
-| `upgrade` | **Config Versioning**. Migrates project state to the latest configuration version. | `masterops upgrade my-app` |
-| `status` | **Health Check**. Inspects project health, runtime versions, and service status. | `masterops status` |
-| `run` | **Service Control**. Manages specific services within an existing project. | `masterops run backend` |
-| `cleanup` | **Wipe Project**. Removes all files and state for a fresh start. | `masterops cleanup my-app` |
-| `audit` | **Security Audit**. Checks for open ports, root-run services, and unsafe permissions. | `masterops audit` |
-| `backup` | **S3 Backup**. Triggers an immediate encrypted backup of databases and configs. | `masterops backup` |
-| `vault` | **Secret Management**. Manages AES-256 encrypted project secrets. | `masterops vault set KEY=VAL` |
-| `terraform` | **Cloud Infra**. Provisions AWS VPC, EC2, S3, and IAM automatically. | `masterops terraform --start` |
-| `nginx` | **Web Server**. Manages global Nginx installation and configuration. | `masterops nginx --start` |
-| `new` | **Project Scaffold**. Creates a basic project structure. | `masterops new my-app` |
-| `version` | **Version Check**. Displays the current MasterOps version. | `masterops version` |
+| `start` | **The Day 1 Wizard**. Provisions a full project environment. | `masterops start my-app` |
+| `diff` | **Drift Detection**. Detects system inconsistencies. | `masterops diff my-app` |
+| `upgrade` | **Config Versioning**. Migrates project state. | `masterops upgrade my-app` |
+| `status` | **Health Check**. Inspects project health and services. | `masterops status` |
+| `run` | **Service Control**. Manages project services. | `masterops run backend` |
+| `cleanup` | **Wipe Project**. Full removal of project state. | `masterops cleanup my-app` |
+| `audit` | **Security Audit**. Checks for vulnerabilities. | `masterops audit` |
+| `backup` | **S3 Backup**. Encrypted database backups. | `masterops backup` |
+| `vault` | **Secret Management**. AES-256 encrypted secrets. | `masterops vault set KEY=VAL` |
+| `terraform` | **Cloud Infra**. Automates AWS setup. | `masterops terraform --start` |
+| `nginx` | **Web Server**. Global Nginx management. | `masterops nginx --start` |
 
 ---
 
-## 🚀 How to Use It
+## 🚀 How it Works (Workflow)
 
-### The Bootstrapping Workflow
-The primary entry point for any new project is the `start` command.
+### The Provisioning Pipeline
+```mermaid
+sequenceDiagram
+    participant User
+    participant MasterOps
+    participant Ansible
+    participant OS as Linux Server
 
+    User->>MasterOps: masterops start <project>
+    MasterOps->>User: Interactive Configuration Wizard
+    User->>MasterOps: Selection (Framework, DB, Domain)
+    MasterOps->>Ansible: Dispatch Provisioning Role
+    Ansible->>OS: Install SDKs & Dependencies
+    Ansible->>OS: Scaffold Day 1 Application
+    Ansible->>OS: Configure Systemd & Nginx
+    OS-->>MasterOps: Success
+    MasterOps-->>User: Project Ready! (Health: OK)
+```
+
+### Deployment Steps
 1. **Initiate**: Run `masterops start <project_name>`.
-2. **Configure**: The interactive wizard will ask you to select:
-   - **Backend Framework**: (.NET, Spring Boot, Laravel, Django, Go)
-   - **Frontend Framework**: (React, Vue, Next.js, etc.)
-   - **Database Engine**: (Postgres, MySQL, MariaDB, Redis)
-   - **Installation Mode**: (Native or Containerized)
-   - **Domain Name**: (e.g., `app.example.com`)
-3. **Automated Provisioning**: MasterOps will then:
-   - Create the project directory under `/var/www/<project_name>`.
-   - Install the exact runtime version needed.
-   - Scaffold a runnable "Day 1" application if the directory is empty.
-   - Provision the database and generate a unique, secure password.
-   - Configure the systemd service and Nginx vhost.
-4. **Verify**: Run `masterops status` to confirm the application is `Running` and `Health: OK`.
-
-### Managing Drift
-As servers evolve, manual changes often introduce "drift." Use `masterops diff <project>` to detect if the actual installed framework or database differs from the desired state recorded in `masterops.yaml`.
-
-### Versioning and Upgrades
-When the MasterOps engine is updated with new features or security patches, use `masterops upgrade <project>` to migrate your existing project state to the current version without losing data.
+2. **Configure**: Select your tech stack (Backend, Frontend, DB).
+3. **Automated Provisioning**: MasterOps handles the runtime, database, and networking.
+4. **Verify**: Run `masterops status` to confirm everything is operational.
 
 ---
 
 ## 🏗️ Architecture
 
 MasterOps is built on a layered architecture for maximum reliability:
-- **CLI Layer**: A unified shell interface providing a consistent UX.
-- **State Layer**: YAML-based tracking (`.masterops/state.yaml`) ensuring every operation is idempotent.
-- **Provisioning Layer**: A modular Ansible library that handles the heavy lifting of OS-level configuration.
-- **Security Layer**: Dynamic secret generation using `openssl` to eliminate hardcoded credentials.
+- **CLI Layer**: Unified shell interface providing a consistent UX.
+- **State Layer**: YAML-based tracking (`.masterops/state.yaml`) for idempotency.
+- **Provisioning Layer**: Modular Ansible roles handling OS-level configuration.
+- **Security Layer**: Dynamic secret generation via `openssl` to prevent leaks.
 
 ## ⏱️ Value Proposition
 
