@@ -1,0 +1,22 @@
+---
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: yes
+
+- name: Install essential tools
+  ansible.builtin.apt:
+    name:
+      - curl
+      - git
+      - unzip
+      - vim
+      - htop
+      - software-properties-common
+      - apt-transport-https
+      - ca-certificates
+      - gnupg
+    state: present
+
+- name: Set timezone to UTC
+  community.general.timezone:
+    name: UTC

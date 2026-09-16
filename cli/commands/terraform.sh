@@ -1,19 +1,30 @@
 #!/usr/bin/env bash
+# MasterOps Terraform Orchestrator
+# Provisions AWS infrastructure using Terraform modules.
+
+set -euo pipefail
 source "$MASTEROPS_HOME/cli/lib/common.sh"
+
+# Help handling
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  mops_render_help "terraform" \
+    "Provision AWS infrastructure (VPC, EC2, IAM, S3) using Terraform modules." \
+    "masterops terraform --start" \
+    "  masterops terraform --start"
+  exit 0
+fi
 
 ACTION=""
 for arg in "$@"; do
   case "$arg" in
-    --start) ACTION="start" ;;
+    --start|start) ACTION="start" ;;
     *) mops_die "unknown flag: $arg" ;;
   esac
 done
 
 [[ -z "$ACTION" ]] && mops_die "usage: masterops terraform --start"
 
-# --- Safety check 1: refuse to run on a live AWS server. Real EC2
-# instances can reach the AWS instance metadata service at this fixed
-# link-local address; a personal laptop cannot. ---
+# --- Safety check 1: refuse to run on a live AWS server ---
 mops_log "checking this isn't running on a live AWS server..."
 if curl -s -m 2 http://169.254.169.254/latest/meta-data/ > /dev/null 2>&1; then
   mops_die "AWS metadata service detected -- this looks like an EC2 server, not your laptop. 'masterops terraform --start' must be run from your local machine, before any server exists."

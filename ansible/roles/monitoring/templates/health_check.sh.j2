@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# MasterOps Health Check Script
+# Monitors core services and alerts via Telegram and Email.
+
+PROJECTS_DIR="/var/www"
+LOG_FILE="/var/log/masterops/health_check.log"
+VAULT_KEY_FILE="/etc/masterops/vault.key"
+
+# Load Secrets from Global Vault
+get_secret() {
+  local key="$1"
+  # We use the vault utilities to decrypt the global settings
+  # For V1, we store global monitoring secrets in /etc/masterops/.env.vault
+  if [[ -f "/etc/masterops/.env.vault" ]]; then
+    openssl enc -aes-256-cbc -d -salt -pbkdf2 -pass "file:$VAULT_KEY_FILE" -in "/etc/masterops/.env.vault" | grep "^${key}=" | cut -d= -f2
+  fi
+}
+
+TELEGRAM_TOKEN=$(get_secret "TELEGRAM_TOKEN")
+TELEGRAM_CHAT_ID=$(get_secret "TELEGRAM_CHAT_ID")
+ADMIN_EMAIL=$(get_secret "ADMIN_EMAIL")
+
+notify() {
+  local message="$1"
+  echo "[$(date)] ALERT: $message" >> "$LOG_FILE"
+
+  # Telegram Notification
+  if [[ -n "$TELEGRAM_TOKEN" && -n "$TELEGRAM_CHAT_ID" ]]; then
+    curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+      -d "chat_id=${TELEGRAM_CHAT_ID}" \
+      -d "text=🚨 *MasterOps Alert*\n${message}" > /dev/null
+  fi
+
+  # Email Notification
+  if [[ -n "$ADMIN_EMAIL" ]]; then
+    echo "$message" | mail -s "MasterOps Health Alert" "$ADMIN_EMAIL" > /dev/null 2>&1 || true
+  fi
+}
+
+for PROJECT_DIR in $PROJECTS_DIR/*; do
+  if [[ -d "$PROJECT_DIR/.masterops" ]]; then
+    PROJECT_NAME=$(basename "$PROJECT_DIR")
+
+    # 1. Check Nginx
+    if ! systemctl is-active --quiet nginx; then
+      notify "Nginx is DOWN for project $PROJECT_NAME"
+    fi
+
+    # 2. Check Application Service
+    # We look for a service named after the project
+    if ! systemctl is-active --quiet "$PROJECT_NAME"; then
+      notify "Application service $PROJECT_NAME is DOWN"
+    fi
+
+    # 3. Check Database (based on state)
+    # Use yq to get the db_type from project state
+    DB_TYPE=$(yq '.database' "$PROJECT_DIR/.masterops/state.yaml" | sed 's/"//g')
+    case "$DB_TYPE" in
+      postgres)
+        if ! systemctl is-active --quiet postgresql; then notify "PostgreSQL is DOWN for project $PROJECT_NAME"; fi
+        ;;
+      mysql|mariadb)
+        if ! systemctl is-active --quiet mysql; then notify "MySQL/MariaDB is DOWN for project $PROJECT_NAME"; fi
+        ;;
+    esac
+  fi
+done

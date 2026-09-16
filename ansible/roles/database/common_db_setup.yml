@@ -1,0 +1,15 @@
+---
+- name: Create Project Database
+  ansible.builtin.shell: |
+    {% if db_type == 'postgres' %}
+    sudo -u postgres psql -c "CREATE DATABASE \"{{ project_name }}_db\";"
+    sudo -u postgres psql -c "CREATE USER masterops_user WITH PASSWORD '{{ db_password }}';"
+    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE \"{{ project_name }}_db\" TO masterops_user;"
+    {% elif db_type == 'mysql' or db_type == 'mariadb' %}
+    sudo mysql -e "CREATE DATABASE \`{{ project_name }}_db\`;"
+    sudo mysql -e "CREATE USER 'masterops_user'@'localhost' IDENTIFIED BY '{{ db_password }}';"
+    sudo mysql -e "GRANT ALL PRIVILEGES ON \`{{ project_name }}_db\`.* TO 'masterops_user'@'localhost';"
+    sudo mysql -e "FLUSH PRIVILEGES;"
+    {% endif %}
+  ignore_errors: yes
+  when: db_type != 'redis'

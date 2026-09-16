@@ -1,0 +1,26 @@
+---
+# MySQL Setup
+- name: Install MySQL (Native)
+  ansible.builtin.apt:
+    name: mysql-server
+    state: present
+  when: install_mode == 'native'
+
+- name: Start MySQL (Native)
+  ansible.builtin.systemd:
+    name: mysql
+    state: started
+    enabled: yes
+  when: install_mode == 'native'
+
+- name: Deploy MySQL Container
+  community.docker.docker_container:
+    name: "mysql_{{ project_name }}"
+    image: mysql:latest
+    state: started
+    restart_policy: always
+    env:
+      MYSQL_ROOT_PASSWORD: "{{ db_password }}"
+    ports:
+      - "3306:3306"
+  when: install_mode == 'container'

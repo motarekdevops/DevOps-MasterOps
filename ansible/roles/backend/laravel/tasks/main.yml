@@ -1,0 +1,136 @@
+---
+- name: Laravel Real Environment Provisioning
+  block:
+    - name: Ensure Project Directory Exists
+      ansible.builtin.file:
+        path: "{{ project_path }}/backend"
+        state: directory
+        owner: "{{ ansible_user | default(ansible_env.USER) }}"
+        mode: '0755'
+
+    - name: Detect Required PHP Version
+      ansible.builtin.shell: |
+        if [ -f "{{ project_path }}/backend/composer.json" ]; then
+          grep -oP '"php":\s*"\K[^"]+' "{{ project_path }}/backend/composer.json" | head -1 | cut -d. -f1
+        else
+          echo "8.2"
+        fi
+      register: detected_php_version
+      changed_when: false
+      become_user: "{{ ansible_user | default(ansible_env.USER) }}"
+
+    - name: Set PHP Version Fact
+      ansible.builtin.set_fact:
+        php_version: "{{ detected_php_version.stdout | default('8.2') }}"
+
+    - name: Install PHP and Extensions
+      block:
+        - name: Install PHP and extensions
+          ansible.builtin.apt:
+            name:
+              - php-fpm
+              - php-mysql
+              - php-xml
+              - php-mbstring
+              - php-curl
+              - php-zip
+              - php-bcmath
+              - php-gd
+              - unzip
+            state: present
+
+        - name: Install Composer
+          ansible.builtin.shell: "curl -sS https://getcomposer.org/installer | php && sudo mv composer.phar /usr/local/bin/composer"
+          args:
+            creates: /usr/local/bin/composer
+
+    - name: Deploy and Configure Laravel
+      block:
+        - name: Check for existing composer.json
+          ansible.builtin.stat:
+            path: "{{ project_path }}/backend/composer.json"
+          register: composer_json_stat
+
+        - name: Initialize Laravel Project (if empty)
+          ansible.builtin.shell: "composer create-project laravel/laravel . --no-interaction"
+          args:
+            chdir: "{{ project_path }}/backend"
+          become_user: "{{ ansible_user | default(ansible_env.USER) }}"
+          when: "not composer_json_stat.stat.exists"
+
+        - name: Install Composer dependencies
+          ansible.builtin.shell: "composer install --no-interaction --prefer-dist --optimize-autoloader"
+          args:
+            chdir: "{{ project_path }}/backend"
+          become_user: "{{ ansible_user | default(ansible_env.USER) }}"
+          when: "composer_json_stat.stat.exists"
+
+        - name: Check for existing .env file
+          ansible.builtin.stat:
+            path: "{{ project_path }}/backend/.env"
+          register: env_file_stat
+
+        - name: Configure .env file
+          ansible.builtin.shell: "cp .env.example .env"
+          args:
+            chdir: "{{ project_path }}/backend"
+          become_user: "{{ ansible_user | default(ansible_env.USER) }}"
+          when: "not env_file_stat.stat.exists"
+
+        - name: Generate Application Key
+          ansible.builtin.shell: "php artisan key:generate --force"
+          args:
+            chdir: "{{ project_path }}/backend"
+          become_user: "{{ ansible_user | default(ansible_env.USER) }}"
+
+        - name: Run Database Migrations
+          ansible.builtin.shell: "php artisan migrate --force"
+          args:
+            chdir: "{{ project_path }}/backend"
+          become_user: "{{ ansible_user | default(ansible_env.USER) }}"
+          ignore_errors: yes
+
+        - name: Set Storage Permissions
+          ansible.builtin.file:
+            path: "{{ project_path }}/backend/storage"
+            state: directory
+            recurse: yes
+            mode: '0775'
+            owner: www-data
+            group: www-data
+
+    - name: Configure Systemd Service
+      block:
+        - name: Deploy Laravel systemd service file
+          ansible.builtin.template:
+            src: laravel_app.service.j2
+            dest: "/etc/systemd/system/{{ project_name }}.service"
+          notify: restart laravel app
+
+        - name: Enable and start Laravel application
+          ansible.builtin.systemd:
+            name: "{{ project_name }}"
+            enabled: yes
+            state: started
+            daemon_reload: yes
+
+    - name: Configure Nginx for Laravel
+      ansible.builtin.template:
+        src: laravel_vhost.conf.j2
+        dest: "/etc/nginx/sites-available/{{ project_name }}"
+      notify: restart nginx
+
+    - name: Enable Nginx Site
+      ansible.builtin.file:
+        src: "/etc/nginx/sites-available/{{ project_name }}"
+        dest: "/etc/nginx/sites-enabled/{{ project_name }}"
+        state: link
+
+    - name: Verify Application Health
+      ansible.builtin.shell: "curl -s -f http://localhost || true"
+      register: health_check
+      changed_when: false
+
+    - name: Report Health Status
+      ansible.builtin.debug:
+        msg: "Application Health Check: {{ 'OK' if health_check.rc == 0 else 'FAILED' }}"

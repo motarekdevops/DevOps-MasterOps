@@ -1,0 +1,50 @@
+---
+- name: Security Audit - Check Open Ports
+  shell: "ss -tulpn | grep LISTEN"
+  register: open_ports
+  changed_when: false
+  failed_when: false
+
+- name: Security Audit - Analyze Open Ports
+  debug:
+    msg: "Open Port detected: {{ item }}"
+  loop: "{{ open_ports.stdout_lines }}"
+  when: open_ports.stdout != ""
+
+- name: Security Audit - Check SSH Config (Root Login)
+  shell: "grep '^PermitRootLogin' /etc/ssh/sshd_config"
+  register: ssh_root_login
+  changed_when: false
+  failed_when: false
+
+- name: Security Audit - Alert on Root Login
+  debug:
+    msg: "WARNING: Root login might be enabled: {{ ssh_root_login.stdout }}"
+  when:
+    - ssh_root_login.stdout != ""
+    - "'no' not in ssh_root_login.stdout"
+
+- name: Security Audit - Check SSH Config (Password Auth)
+  shell: "grep '^PasswordAuthentication' /etc/ssh/sshd_config"
+  register: ssh_pwd_auth
+  changed_when: false
+  failed_when: false
+
+- name: Security Audit - Alert on Password Auth
+  debug:
+    msg: "WARNING: Password authentication might be enabled: {{ ssh_pwd_auth.stdout }}"
+  when:
+    - ssh_pwd_auth.stdout != ""
+    - "'no' not in ssh_pwd_auth.stdout"
+
+- name: Security Audit - Check Sudoers for NOPASSWD
+  shell: "grep 'NOPASSWD' /etc/sudoers /etc/sudoers.d/*"
+  register: sudo_nopasswd
+  changed_when: false
+  failed_when: false
+
+- name: Security Audit - Alert on NOPASSWD
+  debug:
+    msg: "WARNING: NOPASSWD found in sudoers: {{ sudo_nopasswd.stdout_lines }}"
+  loop: "{{ sudo_nopasswd.stdout_lines }}"
+  when: sudo_nopasswd.stdout != ""

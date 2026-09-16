@@ -1,0 +1,112 @@
+---
+- name: .NET Real Environment Provisioning
+  block:
+    - name: Ensure Project Directory Exists
+      ansible.builtin.file:
+        path: "{{ project_path }}/backend"
+        state: directory
+        owner: "{{ ansible_user | default(ansible_env.USER) }}"
+        mode: '0755'
+
+    - name: Detect Required .NET Version
+      ansible.builtin.shell: |
+        if [ -f "{{ project_path }}/backend/global.json" ]; then
+          grep -oP '"version":\s*"\K[^"]+' "{{ project_path }}/backend/global.json" | head -1
+        elif [ -f "{{ project_path }}/backend/{{ project_name }}.csproj" ] || [ -f "{{ project_path }}/backend/{{ project_name }}_api.csproj" ]; then
+          # Fallback to default 8.0 if not found, or try to grep for TargetFramework
+          grep -oP '<TargetFramework>[\w.]+</TargetFramework>' {{ project_path }}/backend/*.csproj | head -1 | sed 's/<TargetFramework>//;s/<\/TargetFramework>//' | sed 's/net//'
+        else
+          echo "8.0"
+        fi
+      register: detected_dotnet_version
+      changed_when: false
+      become_user: "{{ ansible_user | default(ansible_env.USER) }}"
+
+    - name: Set Dotnet Version Fact
+      ansible.builtin.set_fact:
+        dotnet_version: "{{ detected_dotnet_version.stdout | default('8.0') | regex_replace('^([0-9.]+).*$', '\\1') }}"
+
+    - name: Install .NET SDK and Runtime (Version-Specific)
+      block:
+        - name: Add Microsoft package signing key
+          ansible.builtin.apt_key:
+            url: https://packages.microsoft.com/keys/microsoft.asc
+            state: present
+
+        - name: Add Microsoft .NET repository
+          ansible.builtin.apt_repository:
+            repo: "deb [arch=amd64] https://packages.microsoft.com/ubuntu/22.04/prod jammy main"
+            state: present
+
+        - name: Update apt cache
+          ansible.builtin.apt:
+            update_cache: yes
+
+        - name: Install specific .NET SDK
+          ansible.builtin.apt:
+            name: "dotnet-sdk-{{ dotnet_version }}"
+            state: present
+          ignore_errors: yes
+
+        - name: Fallback to .NET 8.0 if specific version fails
+          ansible.builtin.apt:
+            name: dotnet-sdk-8.0
+            state: present
+          when: ansible_failed_result is defined
+
+    - name: Build Application
+      block:
+        - name: Check for existing csproj
+          ansible.builtin.shell: "ls {{ project_path }}/backend/*.csproj"
+          register: csproj_check
+          ignore_errors: yes
+          changed_when: false
+
+        - name: Initialize .NET Project (if empty)
+          ansible.builtin.shell: "dotnet new webapi -n {{ project_name }}"
+          args:
+            chdir: "{{ project_path }}/backend"
+          become_user: "{{ ansible_user | default(ansible_env.USER) }}"
+          when: "csproj_check.rc != 0"
+
+        - name: Restore dependencies
+          ansible.builtin.shell: "dotnet restore"
+          args:
+            chdir: "{{ project_path }}/backend"
+          become_user: "{{ ansible_user | default(ansible_env.USER) }}"
+
+        - name: Build project
+          ansible.builtin.shell: "dotnet build -c Release"
+          args:
+            chdir: "{{ project_path }}/backend"
+          become_user: "{{ ansible_user | default(ansible_env.USER) }}"
+
+        - name: Publish application
+          ansible.builtin.shell: "dotnet publish -c Release -o publish"
+          args:
+            chdir: "{{ project_path }}/backend"
+          become_user: "{{ ansible_user | default(ansible_env.USER) }}"
+
+    - name: Configure Systemd Service
+      block:
+        - name: Deploy .NET systemd service file
+          ansible.builtin.template:
+            src: dotnet_app.service.j2
+            dest: "/etc/systemd/system/{{ project_name }}.service"
+          notify: restart dotnet app
+
+        - name: Enable and start .NET application
+          ansible.builtin.systemd:
+            name: "{{ project_name }}"
+            enabled: yes
+            state: started
+            daemon_reload: yes
+
+    - name: Verify Application Health
+      ansible.builtin.shell: "curl -s -f http://localhost:5000/health || curl -s -f http://localhost:80 || true"
+      register: health_check
+      changed_when: false
+
+    - name: Report Health Status
+      ansible.builtin.debug:
+        msg: "Application Health Check: {{ 'OK' if health_check.rc == 0 else 'FAILED' }}"

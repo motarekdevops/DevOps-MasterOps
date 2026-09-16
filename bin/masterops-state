@@ -1,0 +1,130 @@
+#!/usr/bin/env python3
+"""
+masterops-state -- reads/writes the server-wide state file at
+/etc/masterops/state.yaml. Used by Ansible playbooks to check what's
+already installed before doing work, and to record what they installed
+after. Keeps state logic in one place instead of ad-hoc sed/grep.
+
+Usage:
+  masterops-state get <dotted.key>           # prints value, or "unset"
+  masterops-state set <dotted.key> <value>   # sets value, creates path
+  masterops-state check <dotted.key> <value> # exits 0 if value matches
+  masterops-state list                       # dumps the whole state file
+"""
+import sys
+import os
+import yaml
+
+STATE_FILE = os.environ.get("MASTEROPS_STATE_FILE", "/etc/masterops/state.yaml")
+
+
+def load_state():
+    if not os.path.isfile(STATE_FILE):
+        return {}
+    with open(STATE_FILE) as f:
+        data = yaml.safe_load(f)
+    return data or {}
+
+
+def save_state(data):
+    os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
+    with open(STATE_FILE, "w") as f:
+        yaml.safe_dump(data, f, default_flow_style=False, sort_keys=True)
+
+
+def get_value(data, dotted_key):
+    node = data
+    for part in dotted_key.split("."):
+        if not isinstance(node, dict) or part not in node:
+            return None
+        node = node[part]
+    return node
+
+
+def coerce_type(value):
+    """CLI args always arrive as strings; convert obvious bool/int/float/
+    null values so the YAML state file stores real types, not text --
+    Ansible's `when:` conditions need real booleans to work correctly."""
+    if value in ("true", "True"):
+        return True
+    if value in ("false", "False"):
+        return False
+    if value in ("null", "none", "None", ""):
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        pass
+    try:
+        return float(value)
+    except ValueError:
+        pass
+    return value
+
+
+def set_value(data, dotted_key, value):
+    parts = dotted_key.split(".")
+    node = data
+    for part in parts[:-1]:
+        if part not in node or not isinstance(node[part], dict):
+            node[part] = {}
+        node = node[part]
+    node[parts[-1]] = coerce_type(value)
+
+
+def main():
+    if len(sys.argv) < 2:
+        print(__doc__)
+        sys.exit(1)
+
+    action = sys.argv[1]
+    data = load_state()
+
+    if action == "get":
+        if len(sys.argv) != 3:
+            print("usage: masterops-state get <dotted.key>", file=sys.stderr)
+            sys.exit(1)
+        value = get_value(data, sys.argv[2])
+        print(value if value is not None else "unset")
+
+    elif action == "set":
+        if len(sys.argv) != 4:
+            print("usage: masterops-state set <dotted.key> <value>", file=sys.stderr)
+            sys.exit(1)
+
+        key = sys.argv[2]
+        desired = coerce_type(sys.argv[3])
+        current = get_value(data, key)
+
+        if current == desired:
+            sys.exit(0)
+
+        set_value(data, key, sys.argv[3])
+        save_state(data)
+        print(f"[masterops-state] set {key} = {sys.argv[3]}")
+        sys.exit(2)
+
+    elif action == "check":
+        if len(sys.argv) != 4:
+            print("usage: masterops-state check <dotted.key> <value>", file=sys.stderr)
+            sys.exit(1)
+
+        current = get_value(data, sys.argv[2])
+        desired = coerce_type(sys.argv[3])
+
+        if current == desired:
+            sys.exit(0)
+
+        sys.exit(1)
+
+    elif action == "list":
+        print(yaml.safe_dump(data, default_flow_style=False, sort_keys=True) or "(empty)")
+
+    else:
+        print(f"unknown action: {action}", file=sys.stderr)
+        print(__doc__)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

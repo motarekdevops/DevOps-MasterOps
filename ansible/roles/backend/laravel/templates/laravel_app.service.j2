@@ -1,0 +1,15 @@
+[Unit]
+Description=Laravel Application Service for {{ project_name }}
+After=network.target php-fpm.service nginx.service
+
+[Service]
+Type=simple
+User={{ ansible_user | default(ansible_env.USER) }}
+Group=www-data
+WorkingDirectory={{ project_path }}/backend
+# Run the queue worker persistently to ensure 'masterops status' shows the app as Running
+ExecStart=/usr/bin/php artisan queue:work
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

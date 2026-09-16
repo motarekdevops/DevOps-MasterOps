@@ -1,0 +1,71 @@
+---
+- name: MasterOps Framework Provisioning
+  hosts: all
+  become: true
+
+  vars:
+    project_path: "/var/www/{{ project_name }}"
+
+  vars_prompt:
+    - name: backend_fw
+      prompt: "Select Backend Framework (laravel/dotnet/springboot/go/django)"
+      default: "laravel"
+      private: no
+
+    - name: frontend_fw
+      prompt: "Select Frontend Framework (react/vue/nextjs/svelte/angular)"
+      default: "react"
+      private: no
+
+    - name: db_type
+      prompt: "Select Database (postgres/mysql/mariadb/redis)"
+      default: "postgres"
+      private: no
+
+    - name: install_mode
+      prompt: "Installation Mode (native/container)"
+      default: "container"
+      private: no
+
+    - name: webserver
+      prompt: "Select Web Server (nginx/apache)"
+      default: "nginx"
+      private: no
+
+    - name: domain
+      prompt: "Enter Domain Name (e.g. example.com)"
+      private: no
+
+    - name: k8s
+      prompt: "Do you need Kubernetes/Helm clusters? (true/false)"
+      default: "false"
+      private: no
+
+  pre_tasks:
+    - name: Ensure project directory exists
+      ansible.builtin.file:
+        path: "{{ project_path }}"
+        state: directory
+        owner: "{{ ansible_user | default(ansible_env.USER) }}"
+        mode: '0755'
+
+  roles:
+    - role: masterops_state
+    - role: common
+    - role: docker
+      when: install_mode == 'container'
+    - role: k8s_deploy
+      when: k8s == 'true'
+    - role: database
+      when: db_type is defined
+    - role: backend
+      when: backend_fw is defined
+    - role: frontend
+      when: frontend_fw is defined
+    - role: nginx_vhost
+      when: webserver == 'nginx'
+    - role: project
+    - role: background_tasks
+    - role: monitoring
+
+

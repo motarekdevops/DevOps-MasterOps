@@ -1,0 +1,25 @@
+---
+- name: S3 Backups - Install AWS CLI
+  apt:
+    name: awscli
+    state: present
+
+- name: S3 Backups - Create Backup Script Directory
+  file:
+    path: /opt/masterops/backups
+    state: directory
+    mode: '0755'
+
+- name: S3 Backups - Deploy Backup Script
+  template:
+    src: backup_script.sh.j2
+    dest: /opt/masterops/backups/backup.sh
+    mode: '0755'
+
+- name: S3 Backups - Configure Backup Cron Job
+  cron:
+    name: "MasterOps Daily Backup"
+    minute: "0"
+    hour: "2"
+    job: "/opt/masterops/backups/backup.sh"
+    state: present

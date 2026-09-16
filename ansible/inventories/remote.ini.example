@@ -1,0 +1,4 @@
+# Copy this to remote.ini and fill in your server's details, then run:
+#   ansible-playbook -i ansible/inventories/remote.ini ansible/playbooks/database/postgres.yml
+[remote]
+my-server ansible_host=203.0.113.10 ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/my-key.pem ansible_python_interpreter=/usr/bin/python3

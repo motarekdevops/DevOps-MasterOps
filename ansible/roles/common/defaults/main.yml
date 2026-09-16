@@ -1,0 +1,4 @@
+---
+masterops_state_dir: /etc/masterops
+masterops_state_file: "{{ masterops_state_dir }}/state.yaml"
+masterops_state_version: 1

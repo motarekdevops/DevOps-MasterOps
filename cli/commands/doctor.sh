@@ -47,6 +47,18 @@ else
   check_warn "Docker not installed"
 fi
 
+if python3 -c "import yaml" >/dev/null 2>&1; then
+  check_pass "python3-yaml installed (required by masterops-state)"
+else
+  check_fail "python3-yaml missing -- install it: sudo apt install python3-yaml"
+fi
+
+if mops_command_exists ansible-playbook; then
+  check_pass "Ansible installed: $(ansible --version | head -n1)"
+else
+  check_warn "Ansible not installed -- required for native (non-container) stack installs. Install: sudo apt install ansible"
+fi
+
 echo "-----------------------------------"
 echo "Result: $FAILS failing, $WARNS warnings"
 if [[ "$FAILS" -gt 0 ]]; then

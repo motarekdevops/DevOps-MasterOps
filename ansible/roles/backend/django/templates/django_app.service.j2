@@ -1,0 +1,12 @@
+[Unit]
+Description=Django Application %{project_name}
+After=network.target
+
+[Service]
+User={{ ansible_user | default(ansible_env.USER) }}
+Group=www-data
+WorkingDirectory={{ project_path }}/backend
+ExecStart=/var/www/{{ project_name }}/backend/venv/bin/gunicorn --workers 3 --bind unix:{{ project_path }}/backend/app.sock config.wsgi:application
+
+[Install]
+WantedBy=multi-user.target

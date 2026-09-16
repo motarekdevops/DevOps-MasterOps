@@ -4,17 +4,53 @@
 
 set -euo pipefail
 
-readonly MOPS_BLUE='\033[0;34m'
-readonly MOPS_GREEN='\033[0;32m'
-readonly MOPS_YELLOW='\033[0;33m'
-readonly MOPS_RED='\033[0;31m'
-readonly MOPS_RESET='\033[0m'
+MOPS_BLUE='\033[0;34m'
+MOPS_GREEN='\033[0;32m'
+MOPS_YELLOW='\033[0;33m'
+MOPS_RED='\033[0;31m'
+MOPS_RESET='\033[0m'
 
 mops_log()   { echo -e "${MOPS_BLUE}[masterops]${MOPS_RESET} $*"; }
 mops_ok()    { echo -e "${MOPS_GREEN}[ ok ]${MOPS_RESET} $*"; }
 mops_warn()  { echo -e "${MOPS_YELLOW}[warn]${MOPS_RESET} $*" >&2; }
 mops_error() { echo -e "${MOPS_RED}[fail]${MOPS_RESET} $*" >&2; }
 mops_die()   { mops_error "$*"; exit 1; }
+
+mops_spinner() {
+  local pid=$1
+  local delay=0.1
+  local spinstr='|/-\'
+  while ps -p $pid > /dev/null; do
+    local temp=${spinstr#?}
+    printf " [%c]  " "${spinstr%"${temp}"}"
+    printf "\b\b\b\b\b\b"
+    sleep $delay
+    spinstr=$temp${spinstr%"${temp}"}
+  done
+  printf "    \b\b\b\b"
+}
+
+mops_json_log() {
+  local level="$1"
+  local event="$2"
+  local message="$3"
+  local project="${4:-global}"
+  local timestamp
+  timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+  # Ensure log directory exists
+  if [[ ! -d "/var/log/masterops" ]]; then
+    sudo mkdir -p /var/log/masterops
+    sudo chmod 777 /var/log/masterops
+  fi
+
+  # Structured JSON line for Loki/Grafana
+  local json_line
+  json_line=$(printf '{"timestamp":"%s","level":"%s","project":"%s","event":"%s","message":"%s"}' \
+    "$timestamp" "$level" "$project" "$event" "$message")
+
+  echo "$json_line" | sudo tee -a /var/log/masterops/masterops.log > /dev/null
+}
 
 
 MOPS_HOME="${MASTEROPS_HOME:-/usr/share/masterops}"
@@ -51,6 +87,20 @@ mops_confirm() {
   fi
   read -r -p "$prompt [y/N] " reply
   [[ "$reply" =~ ^[Yy]$ ]]
+}
+
+mops_render_help() {
+  local cmd="$1"
+  local purpose="$2"
+  local syntax="$3"
+  local examples="$4"
+
+  echo -e "\n${MOPS_BLUE}Command: ${MOPS_RESET}$cmd"
+  echo -e "${MOPS_YELLOW}Purpose:  ${MOPS_RESET}$purpose"
+  echo -e "${MOPS_YELLOW}Syntax:   ${MOPS_RESET}$syntax"
+  echo -e "\n${MOPS_BLUE}Examples:${MOPS_RESET}"
+  echo -e "$examples"
+  echo -e "\n"
 }
 
 

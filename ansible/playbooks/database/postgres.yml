@@ -1,0 +1,65 @@
+---
+- name: Install and configure PostgreSQL natively
+  hosts: all
+  become: true
+  vars:
+    postgres_db: "{{ lookup('env', 'POSTGRES_DB') | default('changeme', true) }}"
+    postgres_user: "{{ lookup('env', 'POSTGRES_USER') | default('changeme', true) }}"
+    postgres_password: "{{ lookup('env', 'POSTGRES_PASSWORD') | default('changeme', true) }}"
+
+  tasks:
+    - name: Check current state
+      command: masterops-state get database.postgres.installed
+      register: pg_state
+      changed_when: false
+
+    - name: Install postgresql package
+      apt:
+        name:
+          - postgresql
+          - postgresql-contrib
+          - python3-psycopg2
+        state: present
+        update_cache: true
+      when: pg_state.stdout != "true"
+
+    - name: Ensure PostgreSQL service is running and enabled
+      service:
+        name: postgresql
+        state: started
+        enabled: true
+
+    - name: Warn if credentials are still at defaults
+      debug:
+        msg: >-
+          WARNING: postgres_db/user/password are still 'changeme'.
+          Set POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD in your .env
+          before running this playbook, then re-run to create the real
+          database/user.
+      when: postgres_db == "changeme" or postgres_user == "changeme"
+
+    - name: Create database
+      become_user: postgres
+      postgresql_db:
+        name: "{{ postgres_db }}"
+        state: present
+      when: postgres_db != "changeme"
+
+    - name: Create database user
+      become_user: postgres
+      postgresql_user:
+        db: "{{ postgres_db }}"
+        name: "{{ postgres_user }}"
+        password: "{{ postgres_password }}"
+        priv: ALL
+        state: present
+      when: postgres_db != "changeme" and postgres_user != "changeme"
+
+    - name: Record installed state
+      command: masterops-state set database.postgres.installed true
+      when: pg_state.stdout != "true"
+
+    - name: Record postgres version in state
+      command: "masterops-state set database.postgres.version {{ ansible_facts.packages['postgresql'][0].version | default('unknown') }}"
+      when: pg_state.stdout != "true"
+      ignore_errors: true

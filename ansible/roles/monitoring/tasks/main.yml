@@ -1,0 +1,19 @@
+---
+- name: Monitoring - Create Monitoring Directory
+  file:
+    path: /opt/masterops/monitoring
+    state: directory
+    mode: '0755'
+
+- name: Monitoring - Deploy Health Check Script
+  template:
+    src: health_check.sh.j2
+    dest: /opt/masterops/monitoring/health_check.sh
+    mode: '0755'
+
+- name: Monitoring - Configure Health Check Cron Job
+  cron:
+    name: "MasterOps Health Check"
+    minute: "*/15"
+    job: "/opt/masterops/monitoring/health_check.sh"
+    state: present

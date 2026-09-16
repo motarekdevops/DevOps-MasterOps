@@ -1,0 +1,113 @@
+---
+- name: Go Real Environment Provisioning
+  block:
+    - name: Ensure Project Directory Exists
+      ansible.builtin.file:
+        path: "{{ project_path }}/backend"
+        state: directory
+        owner: "{{ ansible_user | default(ansible_env.USER) }}"
+        mode: '0755'
+
+    - name: Detect Required Go Version
+      ansible.builtin.shell: |
+        if [ -f "{{ project_path }}/backend/go.mod" ]; then
+          grep -oP 'go\s+\K[0-9.]+' "{{ project_path }}/backend/go.mod" | head -1
+        else
+          echo "1.23.2"
+        fi
+      register: detected_go_version
+      changed_when: false
+      become_user: "{{ ansible_user | default(ansible_env.USER) }}"
+
+    - name: Set Go Version Fact
+      ansible.builtin.set_fact:
+        go_version: "{{ detected_go_version.stdout | default('1.22') }}"
+
+    - name: Install Go Language
+      block:
+        - name: Download Go binary
+          ansible.builtin.get_url:
+            url: "https://go.dev/dl/go{{ go_version }}.linux-amd64.tar.gz"
+            dest: "/tmp/go.tar.gz"
+
+        - name: Extract Go binary
+          ansible.builtin.unarchive:
+            src: "/tmp/go.tar.gz"
+            dest: /usr/local
+            remote_src: yes
+
+        - name: Configure Go Environment
+          ansible.builtin.copy:
+            content: 'export PATH=$PATH:/usr/local/go/bin'
+            dest: /etc/profile.d/go.sh
+            mode: '0644'
+
+    - name: Build Go Application
+      block:
+        - name: Check for existing go.mod
+          ansible.builtin.stat:
+            path: "{{ project_path }}/backend/go.mod"
+          register: go_mod_stat
+
+        - name: Initialize Go Module (if empty)
+          ansible.builtin.shell: "go mod init {{ project_name }}"
+          args:
+            chdir: "{{ project_path }}/backend"
+          become_user: "{{ ansible_user | default(ansible_env.USER) }}"
+          when: "not go_mod_stat.stat.exists"
+
+        - name: Create basic main.go (if empty)
+          ansible.builtin.copy:
+            dest: "{{ project_path }}/backend/main.go"
+            content: |
+              package main
+              import (
+                "fmt"
+                "net/http"
+              )
+              func main() {
+                http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+                  fmt.Fprintf(w, "Welcome to {{ project_name }} Go Backend!")
+                })
+                fmt.Println("Server starting on :8080...")
+                http.ListenAndServe(":8080", nil)
+              }
+            owner: "{{ ansible_user | default(ansible_env.USER) }}"
+            mode: '0644'
+          when: "not go_mod_stat.stat.exists"
+
+        - name: Download dependencies
+          ansible.builtin.shell: "go mod download"
+          args:
+            chdir: "{{ project_path }}/backend"
+          become_user: "{{ ansible_user | default(ansible_env.USER) }}"
+
+        - name: Build binary
+          ansible.builtin.shell: "go build -o main ."
+          args:
+            chdir: "{{ project_path }}/backend"
+          become_user: "{{ ansible_user | default(ansible_env.USER) }}"
+
+    - name: Configure Systemd Service
+      block:
+        - name: Deploy Go systemd service file
+          ansible.builtin.template:
+            src: go_app.service.j2
+            dest: "/etc/systemd/system/{{ project_name }}.service"
+          notify: restart go app
+
+        - name: Enable and start Go application
+          ansible.builtin.systemd:
+            name: "{{ project_name }}"
+            enabled: yes
+            state: started
+            daemon_reload: yes
+
+    - name: Verify Application Health
+      ansible.builtin.shell: "curl -s -f http://localhost:8080 || curl -s -f http://localhost:80 || true"
+      register: health_check
+      changed_when: false
+
+    - name: Report Health Status
+      ansible.builtin.debug:
+        msg: "Application Health Check: {{ 'OK' if health_check.rc == 0 else 'FAILED' }}"

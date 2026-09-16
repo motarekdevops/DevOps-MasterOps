@@ -1,0 +1,110 @@
+---
+- name: Django Real Environment Provisioning
+  block:
+    - name: Ensure Project Directory Exists
+      ansible.builtin.file:
+        path: "{{ project_path }}/backend"
+        state: directory
+        owner: "{{ ansible_user | default(ansible_env.USER) }}"
+        mode: '0755'
+
+    - name: Detect Required Python Version
+      ansible.builtin.shell: |
+        if [ -f "{{ project_path }}/backend/runtime.txt" ]; then
+          grep -oP 'python-?\K[0-9.]+' "{{ project_path }}/backend/runtime.txt" | head -1
+        else
+          echo "3.11"
+        fi
+      register: detected_python_version
+      changed_when: false
+      become_user: "{{ ansible_user | default(ansible_env.USER) }}"
+
+    - name: Set Python Version Fact
+      ansible.builtin.set_fact:
+        python_version: "{{ detected_python_version.stdout | default('3.11') }}"
+
+    - name: Install Python and venv
+      block:
+        - name: Install specific Python version
+          ansible.builtin.apt:
+            name:
+              - "python{{ python_version }}"
+              - "python{{ python_version }}-venv"
+              - "python3-pip"
+              - "build-essential"
+              - "libpq-dev"
+            state: present
+          ignore_errors: yes
+
+        - name: Fallback to system python3
+          ansible.builtin.apt:
+            name:
+              - "python3"
+              - "python3-venv"
+              - "python3-pip"
+              - "build-essential"
+              - "libpq-dev"
+            state: present
+          when: ansible_failed_result is defined
+
+    - name: Setup Isolated Virtual Environment
+      block:
+        - name: Create venv
+          ansible.builtin.shell: "python{{ python_version }} -m venv venv || python3 -m venv venv"
+          args:
+            chdir: "{{ project_path }}/backend"
+          become_user: "{{ ansible_user | default(ansible_env.USER) }}"
+
+        - name: Check for existing manage.py
+          ansible.builtin.stat:
+            path: "{{ project_path }}/backend/manage.py"
+          register: manage_py_stat
+
+        - name: Initialize Django Project (if empty)
+          ansible.builtin.shell: "./venv/bin/pip install django && ./venv/bin/django-admin startproject config ."
+          args:
+            chdir: "{{ project_path }}/backend"
+          become_user: "{{ ansible_user | default(ansible_env.USER) }}"
+          when: "not manage_py_stat.stat.exists"
+
+        - name: Check for requirements.txt
+          ansible.builtin.stat:
+            path: "{{ project_path }}/backend/requirements.txt"
+          register: requirements_stat
+
+        - name: Install Dependencies
+          ansible.builtin.shell: "./venv/bin/pip install -r requirements.txt"
+          args:
+            chdir: "{{ project_path }}/backend"
+          become_user: "{{ ansible_user | default(ansible_env.USER) }}"
+          when: "requirements_stat.stat.exists"
+
+        - name: Install Django (if missing)
+          ansible.builtin.shell: "./venv/bin/pip install django gunicorn"
+          args:
+            chdir: "{{ project_path }}/backend"
+          become_user: "{{ ansible_user | default(ansible_env.USER) }}"
+
+    - name: Configure Gunicorn Service
+      block:
+        - name: Deploy Django systemd service file
+          ansible.builtin.template:
+            src: django_app.service.j2
+            dest: "/etc/systemd/system/{{ project_name }}.service"
+          notify: restart django app
+
+        - name: Enable and start Django application
+          ansible.builtin.systemd:
+            name: "{{ project_name }}"
+            enabled: yes
+            state: started
+            daemon_reload: yes
+
+    - name: Verify Application Health
+      ansible.builtin.shell: "curl -s -f http://localhost:8000 || curl -s -f http://localhost:80 || true"
+      register: health_check
+      changed_when: false
+
+    - name: Report Health Status
+      ansible.builtin.debug:
+        msg: "Application Health Check: {{ 'OK' if health_check.rc == 0 else 'FAILED' }}"

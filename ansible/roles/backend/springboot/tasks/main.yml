@@ -1,0 +1,120 @@
+---
+- name: Spring Boot Real Environment Provisioning
+  block:
+    - name: Ensure Project Directory Exists
+      ansible.builtin.file:
+        path: "{{ project_path }}/backend"
+        state: directory
+        owner: "{{ ansible_user | default(ansible_env.USER) }}"
+        mode: '0755'
+
+    - name: Detect Required Java Version
+      ansible.builtin.shell: |
+        if [ -f "{{ project_path }}/backend/pom.xml" ]; then
+          grep -oP '<java.version>\K[^<]+' "{{ project_path }}/backend/pom.xml" | head -1
+        elif [ -f "{{ project_path }}/backend/build.gradle" ]; then
+          grep -oP 'sourceCompatibility = \K[^ ]+' "{{ project_path }}/backend/build.gradle" | head -1
+        else
+          echo "17"
+        fi
+      register: detected_java_version
+      changed_when: false
+      become_user: "{{ ansible_user | default(ansible_env.USER) }}"
+
+    - name: Set Java Version Fact
+      ansible.builtin.set_fact:
+        java_version: "{{ detected_java_version.stdout | default('17') | regex_replace('^([0-9.]+).*$', '\\1') }}"
+
+    - name: Install Java and Maven
+      block:
+        - name: Install OpenJDK
+          ansible.builtin.apt:
+            name: "openjdk-{{ java_version }}-jdk"
+            state: present
+          ignore_errors: yes
+
+        - name: Fallback to OpenJDK 17
+          ansible.builtin.apt:
+            name: openjdk-17-jdk
+            state: present
+          when: ansible_failed_result is defined
+
+        - name: Install Maven
+          ansible.builtin.apt:
+            name: maven
+            state: present
+
+    - name: Check for existing build files
+      ansible.builtin.stat:
+        path: "{{ project_path }}/backend/pom.xml"
+      register: pom_stat
+
+    - name: Check for gradle build files
+      ansible.builtin.stat:
+        path: "{{ project_path }}/backend/build.gradle"
+      register: gradle_stat
+
+    - name: Initialize Spring Boot Project (if empty)
+      block:
+        - name: Download basic Spring Boot project
+          ansible.builtin.shell: |
+            curl https://start.spring.io/starter.tgz \
+              -d dependencies=web \
+              -d javaVersion={{ java_version }} \
+              -d type=maven-project \
+              -d name={{ project_name }} \
+              -d artifactId={{ project_name }} \
+              -d packageName=com.masterops.{{ project_name }} \
+              -o project.tgz
+          args:
+            chdir: "{{ project_path }}/backend"
+          become_user: "{{ ansible_user | default(ansible_env.USER) }}"
+
+        - name: Extract Spring Boot project
+          ansible.builtin.shell: "tar -xzf project.tgz && rm project.tgz"
+          args:
+            chdir: "{{ project_path }}/backend"
+          become_user: "{{ ansible_user | default(ansible_env.USER) }}"
+      when: "not pom_stat.stat.exists and not gradle_stat.stat.exists"
+
+    - name: Build Application
+      block:
+        - name: Maven build
+          ansible.builtin.shell: "mvn clean package -DskipTests"
+          args:
+            chdir: "{{ project_path }}/backend"
+          become_user: "{{ ansible_user | default(ansible_env.USER) }}"
+          when:
+            - "stat('{{ project_path }}/backend/pom.xml').stat.exists"
+
+        - name: Gradle build
+          ansible.builtin.shell: "./gradlew build -x test"
+          args:
+            chdir: "{{ project_path }}/backend"
+          become_user: "{{ ansible_user | default(ansible_env.USER) }}"
+          when:
+            - "stat('{{ project_path }}/backend/build.gradle').stat.exists"
+
+    - name: Configure Systemd Service
+      block:
+        - name: Deploy Spring Boot systemd service file
+          ansible.builtin.template:
+            src: springboot_app.service.j2
+            dest: "/etc/systemd/system/{{ project_name }}.service"
+          notify: restart springboot app
+
+        - name: Enable and start Spring Boot application
+          ansible.builtin.systemd:
+            name: "{{ project_name }}"
+            enabled: yes
+            state: started
+            daemon_reload: yes
+
+    - name: Verify Application Health
+      ansible.builtin.shell: "curl -s -f http://localhost:8080/actuator/health || curl -s -f http://localhost:80 || true"
+      register: health_check
+      changed_when: false
+
+    - name: Report Health Status
+      ansible.builtin.debug:
+        msg: "Application Health Check: {{ 'OK' if health_check.rc == 0 else 'FAILED' }}"

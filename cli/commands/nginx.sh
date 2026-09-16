@@ -1,5 +1,18 @@
 #!/usr/bin/env bash
+# MasterOps Nginx Setup Utility
+# Configures Nginx vhosts and SSL for projects.
+
+set -euo pipefail
 source "$MASTEROPS_HOME/cli/lib/common.sh"
+
+# Help handling
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  mops_render_help "nginx" \
+    "Configure Nginx vhosts and SSL certificates for your projects." \
+    "masterops nginx --start" \
+    "  masterops nginx --start"
+  exit 0
+fi
 
 ACTION=""
 for arg in "$@"; do
@@ -17,10 +30,7 @@ SITES_ENABLED="/etc/nginx/sites-enabled"
 BACKEND_CONF_NAME="backend.conf"
 FRONTEND_CONF_NAME="frontend.conf"
 
-# --- 1. Collect domain and project name, then generate Nginx config
-# files from template. Backend and frontend get distinct server_names
-# (api.<domain> vs <domain>/www.<domain>) to avoid nginx server_name
-# conflicts when both vhosts listen on the same port. ---
+# --- 1. Collect domain and project name ---
 read -rp "Enter your domain (e.g. example.com): " SITE_DOMAIN
 [[ -z "$SITE_DOMAIN" ]] && mops_die "domain cannot be empty"
 

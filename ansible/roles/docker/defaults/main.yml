@@ -1,0 +1,4 @@
+---
+masterops_docker_state_key: resources.docker
+masterops_docker_package_state: present
+masterops_docker_service_state: started

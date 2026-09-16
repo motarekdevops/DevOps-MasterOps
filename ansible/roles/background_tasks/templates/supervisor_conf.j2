@@ -1,0 +1,7 @@
+[program:{{ project_name }}_worker]
+command=php /var/www/{{ project_name }}/artisan queue:work
+user={{ ansible_user | default(ansible_env.USER) }}
+autostart=true
+autorestart=true
+stderr_logfile=/var/log/masterops/{{ project_name }}_worker.err.log
+stdout_logfile=/var/log/masterops/{{ project_name }}_worker.out.log

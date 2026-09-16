@@ -1,0 +1,23 @@
+---
+- name: Scaffold Next.js Project
+  block:
+    - name: Create project directory
+      ansible.builtin.file:
+        path: "{{ project_path }}/frontend"
+        state: directory
+        owner: "{{ ansible_user | default(ansible_env.USER) }}"
+        mode: '0755'
+
+    - name: Create Next.js project
+      ansible.builtin.shell:
+        cmd: "npx create-next-app@latest {{ project_name }}-frontend --typescript --tailwind --eslint --app"
+        chdir: "{{ project_path }}/frontend"
+      become_user: "{{ ansible_user | default(ansible_env.USER) }}"
+      args:
+        creates: "{{ project_path }}/frontend/{{ project_name }}-frontend/package.json"
+
+    - name: Build Next.js application
+      ansible.builtin.shell:
+        cmd: "npm run build"
+        chdir: "{{ project_path }}/frontend/{{ project_name }}-frontend"
+      become_user: "{{ ansible_user | default(ansible_env.USER) }}"

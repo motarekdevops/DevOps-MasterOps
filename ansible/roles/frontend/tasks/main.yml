@@ -1,0 +1,5 @@
+---
+- name: Dispatch to specific frontend framework role
+  ansible.builtin.include_role:
+    name: "frontend/{{ frontend_fw }}"
+  when: frontend_fw is defined

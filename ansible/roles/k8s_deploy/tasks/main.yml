@@ -1,0 +1,39 @@
+---
+- name: K8s Deploy - Robust Orchestration
+  block:
+    - name: K8s Deploy - Validate Prerequisites
+      shell: |
+        kubectl cluster-info || { echo "K8s cluster not reachable"; exit 1; }
+      changed_when: false
+
+    - name: K8s Deploy - Install Helm
+      shell: |
+        curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+      when: not (command_exists('helm'))
+      changed_when: false
+
+    - name: K8s Deploy - Create Namespace
+      shell: "kubectl create namespace {{ project_name }} --dry-run=client -o yaml | kubectl apply -f -"
+      changed_when: false
+
+    - name: K8s Deploy - Deploy Framework via Helm
+      shell: |
+        helm upgrade --install {{ project_name }} ./stacks/k8s/generic \
+          --namespace {{ project_name }} \
+          --set ingress.hosts[0].host={{ domain }} \
+          --set image.repository={{ project_name }}-app \
+          --wait --timeout 5m
+      register: helm_result
+
+    - name: K8s Deploy - Verify Pod Health
+      shell: |
+        kubectl get pods -n {{ project_name }} -l "app.kubernetes.io/name={{ project_name }}" -o jsonpath='{.items[*].status.containerStatuses[*].ready}' | grep -q 'true'
+      register: pods_ready
+      until: pods_ready.rc == 0
+      retries: 10
+      delay: 10
+      changed_when: false
+
+    - name: K8s Deploy - Show Status
+      debug:
+        msg: "K8s Deployment Successful. Project {{ project_name }} is healthy and accessible at {{ domain }}."

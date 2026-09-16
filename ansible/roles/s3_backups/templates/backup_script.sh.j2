@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# MasterOps S3 Backup Script
+# Automatically backs up databases and uploads to AWS S3.
+
+BACKUP_DIR="/tmp/masterops_backups"
+S3_BUCKET="s3://masterops-backups-bucket" # This should be a variable in a real scenario
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+
+mkdir -p "$BACKUP_DIR"
+
+# Iterate through all projects in /var/www
+for PROJECT_DIR in /var/www/*; do
+  if [[ -d "$PROJECT_DIR/.masterops" ]]; then
+    PROJECT_NAME=$(basename "$PROJECT_DIR")
+    STATE_FILE="$PROJECT_DIR/.masterops/state.yaml"
+
+    echo "[$(date)] Backing up project: $PROJECT_NAME"
+
+    # Get DB type from state using yq
+    DB_TYPE=$(yq ".database" "$STATE_FILE" | sed 's/^"//;s/"$//')
+
+    if [[ -z "$DB_TYPE" || "$DB_TYPE" == "null" ]]; then
+      echo "No database configured for $PROJECT_NAME. Skipping."
+      continue
+    fi
+
+    BACKUP_FILE="$BACKUP_DIR/${PROJECT_NAME}_${DB_TYPE}_${TIMESTAMP}.sql.gz"
+
+    case "$DB_TYPE" in
+      postgres)
+        # Assuming postgres is running locally as 'postgres' user
+        sudo -u postgres pg_dumpall | gzip > "$BACKUP_FILE"
+        ;;
+      mysql|mariadb)
+        # Assuming root password is handled via ~/.my.cnf or similar
+        mysqldump --all-databases | gzip > "$BACKUP_FILE"
+        ;;
+      *)
+        echo "Unsupported DB type: $DB_TYPE. Skipping."
+        continue
+        ;;
+    esac
+
+    # Upload to S3
+    aws s3 cp "$BACKUP_FILE" "$S3_BUCKET/$PROJECT_NAME/$(basename "$BACKUP_FILE")"
+
+    if [[ $? -eq 0 ]]; then
+      echo "Successfully backed up $PROJECT_NAME to S3."
+    else
+      echo "Failed to upload backup for $PROJECT_NAME to S3."
+    fi
+
+    rm "$BACKUP_FILE"
+  fi
+done
+
+rm -rf "$BACKUP_DIR"

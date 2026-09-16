@@ -1,0 +1,28 @@
+---
+# PostgreSQL Setup
+- name: Install PostgreSQL (Native)
+  ansible.builtin.apt:
+    name:
+      - postgresql
+      - postgresql-client
+    state: present
+  when: install_mode == 'native'
+
+- name: Start PostgreSQL (Native)
+  ansible.builtin.systemd:
+    name: postgresql
+    state: started
+    enabled: yes
+  when: install_mode == 'native'
+
+- name: Deploy PostgreSQL Container
+  community.docker.docker_container:
+    name: "postgres_{{ project_name }}"
+    image: postgres:latest
+    state: started
+    restart_policy: always
+    env:
+      POSTGRES_PASSWORD: "{{ db_password }}"
+    ports:
+      - "5432:5432"
+  when: install_mode == 'container'

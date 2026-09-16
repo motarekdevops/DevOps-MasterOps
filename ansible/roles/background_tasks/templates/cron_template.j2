@@ -1,0 +1,4 @@
+# MasterOps Generated Cron Jobs for {{ project_name }}
+# This file is managed by MasterOps. Manual changes will be overwritten.
+
+0 0 * * * {{ ansible_user | default(ansible_env.USER) }} /usr/bin/php /var/www/{{ project_name }}/artisan schedule:run >> /dev/null 2>&1

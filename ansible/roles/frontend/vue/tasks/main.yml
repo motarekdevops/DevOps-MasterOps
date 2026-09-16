@@ -1,0 +1,29 @@
+---
+- name: Scaffold Vue Project
+  block:
+    - name: Create project directory
+      ansible.builtin.file:
+        path: "{{ project_path }}/frontend"
+        state: directory
+        owner: "{{ ansible_user | default(ansible_env.USER) }}"
+        mode: '0755'
+
+    - name: Create Vue project using Vite
+      ansible.builtin.shell:
+        cmd: "yes | npm create vue@latest {{ project_name }}-frontend"
+        chdir: "{{ project_path }}/frontend"
+      become_user: "{{ ansible_user | default(ansible_env.USER) }}"
+      args:
+        creates: "{{ project_path }}/frontend/{{ project_name }}-frontend/package.json"
+
+    - name: Install Vue dependencies
+      ansible.builtin.shell:
+        cmd: "npm install"
+        chdir: "{{ project_path }}/frontend/{{ project_name }}-frontend"
+      become_user: "{{ ansible_user | default(ansible_env.USER) }}"
+
+    - name: Build Vue application
+      ansible.builtin.shell:
+        cmd: "npm run build"
+        chdir: "{{ project_path }}/frontend/{{ project_name }}-frontend"
+      become_user: "{{ ansible_user | default(ansible_env.USER) }}"

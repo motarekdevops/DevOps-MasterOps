@@ -1,0 +1,26 @@
+---
+# MariaDB Setup
+- name: Install MariaDB (Native)
+  ansible.builtin.apt:
+    name: mariadb-server
+    state: present
+  when: install_mode == 'native'
+
+- name: Start MariaDB (Native)
+  ansible.builtin.systemd:
+    name: mariadb
+    state: started
+    enabled: yes
+  when: install_mode == 'native'
+
+- name: Deploy MariaDB Container
+  community.docker.docker_container:
+    name: "mariadb_{{ project_name }}"
+    image: mariadb:latest
+    state: started
+    restart_policy: always
+    env:
+      MARIADB_ROOT_PASSWORD: "{{ db_password }}"
+    ports:
+      - "3306:3306"
+  when: install_mode == 'container'

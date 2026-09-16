@@ -1,0 +1,35 @@
+---
+- name: Install Node.js and NPM
+  block:
+    - name: Install Node.js (LTS)
+      ansible.builtin.shell:
+        cmd: curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt-get install -y nodejs
+
+- name: Scaffold React Project (Vite)
+  block:
+    - name: Create project directory
+      ansible.builtin.file:
+        path: "{{ project_path }}/frontend"
+        state: directory
+        owner: "{{ ansible_user | default(ansible_env.USER) }}"
+        mode: '0755'
+
+    - name: Create React project using Vite
+      ansible.builtin.shell:
+        cmd: "npm create vite@latest {{ project_name }}-frontend -- --template react"
+        chdir: "{{ project_path }}/frontend"
+      become_user: "{{ ansible_user | default(ansible_env.USER) }}"
+      args:
+        creates: "{{ project_path }}/frontend/{{ project_name }}-frontend/package.json"
+
+    - name: Install React dependencies
+      ansible.builtin.shell:
+        cmd: "npm install"
+        chdir: "{{ project_path }}/frontend/{{ project_name }}-frontend"
+      become_user: "{{ ansible_user | default(ansible_env.USER) }}"
+
+    - name: Build React application
+      ansible.builtin.shell:
+        cmd: "npm run build"
+        chdir: "{{ project_path }}/frontend/{{ project_name }}-frontend"
+      become_user: "{{ ansible_user | default(ansible_env.USER) }}"

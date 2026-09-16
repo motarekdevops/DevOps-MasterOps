@@ -1,0 +1,24 @@
+---
+# Redis Setup
+- name: Install Redis (Native)
+  ansible.builtin.apt:
+    name: redis-server
+    state: present
+  when: install_mode == 'native'
+
+- name: Start Redis (Native)
+  ansible.builtin.systemd:
+    name: redis-server
+    state: started
+    enabled: yes
+  when: install_mode == 'native'
+
+- name: Deploy Redis Container
+  community.docker.docker_container:
+    name: "redis_{{ project_name }}"
+    image: redis:latest
+    state: started
+    restart_policy: always
+    ports:
+      - "6379:6379"
+  when: install_mode == 'container'

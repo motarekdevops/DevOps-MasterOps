@@ -1,0 +1,8 @@
+---
+- name: Dispatch to specific database engine
+  ansible.builtin.include_tasks: "{{ db_type }}.yml"
+  when: db_type is defined
+
+- name: Initialize project-specific database
+  ansible.builtin.include_tasks: common_db_setup.yml
+  when: db_type is defined

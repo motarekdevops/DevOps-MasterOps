@@ -1,0 +1,5 @@
+---
+- name: restart dotnet app
+  ansible.builtin.systemd:
+    name: "{{ project_name }}_api"
+    state: restarted

@@ -1,0 +1,35 @@
+---
+- name: restart nginx
+  ansible.builtin.systemd:
+    name: nginx
+    state: restarted
+
+- name: restart go app
+  ansible.builtin.systemd:
+    name: "{{ project_name }}"
+    state: restarted
+
+- name: restart django app
+  ansible.builtin.systemd:
+    name: "{{ project_name }}"
+    state: restarted
+
+- name: restart springboot app
+  ansible.builtin.systemd:
+    name: "{{ project_name }}"
+    state: restarted
+
+- name: restart dotnet app
+  ansible.builtin.systemd:
+    name: "{{ project_name }}"
+    state: restarted
+
+- name: restart laravel app
+  ansible.builtin.systemd:
+    name: "{{ project_name }}"
+    state: restarted
+
+- name: restart supervisor
+  ansible.builtin.systemd:
+    name: supervisor
+    state: restarted

@@ -12,7 +12,7 @@ export MASTEROPS_HOME="$MOPS_HOME"
 source "$MOPS_HOME/cli/lib/common.sh"
 source "$MOPS_HOME/lib/db_mode.sh"
 
-readonly MOPS_VERSION="0.1.4"
+readonly MOPS_VERSION="0.1.15"
 
 usage() {
   cat <<EOF
@@ -20,9 +20,17 @@ masterops v${MOPS_VERSION}
 
 Usage:
   masterops new <project> --preset=<preset-name>
+  masterops start <project> -- Bootstrap a new framework project
+  masterops run <service>   -- Start a specific service in an existing project
+  masterops cleanup <project> -- Wipe project files and state for a fresh start
   masterops terraform --start
   masterops nginx --start
-  masterops doctor
+  masterops diff <proj>    -- Detect configuration and environment drift
+  masterops audit       -- Run a security audit of the server
+  masterops backup      -- Trigger an immediate S3 backup of all projects
+  masterops upgrade <proj> -- Upgrade project configuration version
+  masterops vault <cmd>   -- Manage encrypted project secrets
+  masterops status
   masterops version
   masterops help
 EOF
@@ -42,15 +50,36 @@ case "$cmd" in
   start)
     exec bash "$MOPS_HOME/cli/commands/start.sh" "$@"
     ;;
+  run)
+    exec bash "$MOPS_HOME/cli/commands/run.sh" "$@"
+    ;;
+  cleanup)
+    exec bash "$MOPS_HOME/cli/commands/cleanup.sh" "$@"
+    ;;
   nginx)
     exec bash "$MOPS_HOME/cli/commands/nginx.sh" "$@"
     ;;
   terraform)
     exec bash "$MOPS_HOME/cli/commands/terraform.sh" "$@"
     ;;
+  diff)
+    exec bash "$MOPS_HOME/cli/commands/diff.sh" "$@"
+    ;;
 
-  doctor)
-    exec bash "$MOPS_HOME/cli/commands/doctor.sh" "$@"
+  audit)
+    exec bash "$MOPS_HOME/cli/commands/audit.sh" "$@"
+    ;;
+  backup)
+    exec bash "$MOPS_HOME/cli/commands/backup.sh" "$@"
+    ;;
+  upgrade)
+    exec bash "$MOPS_HOME/cli/commands/upgrade.sh" "$@"
+    ;;
+  vault)
+    exec bash "$MOPS_HOME/cli/commands/vault.sh" "$@"
+    ;;
+  status)
+    exec bash "$MOPS_HOME/cli/commands/status.sh" "$@"
     ;;
   version|--version|-v)
     echo "masterops v${MOPS_VERSION}"

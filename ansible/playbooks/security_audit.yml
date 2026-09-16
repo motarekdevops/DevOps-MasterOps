@@ -1,0 +1,6 @@
+---
+- name: MasterOps Security Audit
+  hosts: all
+  become: yes
+  roles:
+    - security_audit

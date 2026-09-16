@@ -1,0 +1,13 @@
+[Unit]
+Description=Go Application {{ project_name }}
+After=network.target
+
+[Service]
+User={{ ansible_user | default(ansible_env.USER) }}
+Group=www-data
+WorkingDirectory={{ project_path }}/backend
+ExecStart=/var/www/{{ project_name }}/backend/main
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

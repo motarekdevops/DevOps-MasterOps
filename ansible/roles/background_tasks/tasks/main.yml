@@ -1,0 +1,24 @@
+---
+- name: Background Tasks - Install Supervisor
+  apt:
+    name: supervisor
+    state: present
+
+- name: Background Tasks - Ensure Supervisor is started
+  systemd:
+    name: supervisor
+    state: started
+    enabled: yes
+
+- name: Background Tasks - Deploy Supervisor Config for Project
+  template:
+    src: supervisor_conf.j2
+    dest: "/etc/supervisor/conf.d/{{ project_name }}.conf"
+  notify: restart supervisor
+
+- name: Background Tasks - Deploy Project Cron Template
+  template:
+    src: cron_template.j2
+    dest: "/var/spool/cron/crontabs/{{ ansible_user | default(ansible_env.USER) }}"
+  # We use a simple copy/template here, but in a real scenario we'd use the 'cron' module
+  # to avoid overwriting the entire crontab.

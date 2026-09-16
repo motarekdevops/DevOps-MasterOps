@@ -1,0 +1,18 @@
+---
+- name: Check Docker binary
+  ansible.builtin.command:
+    cmd: docker --version
+  register: masterops_docker_actual
+  changed_when: false
+  failed_when: false
+
+- name: Assert Docker state matches actual system
+  ansible.builtin.assert:
+    that:
+      - masterops_docker_actual.rc == 0
+      - masterops_docker_actual.stdout == lookup('pipe', 'sudo masterops-state get resources.docker.version')
+    fail_msg: >-
+      Docker state drift detected.
+      State: {{ lookup('pipe', 'sudo masterops-state get resources.docker.version') }}
+      Actual: {{ masterops_docker_actual.stdout | default('not installed') }}
+    success_msg: "Docker state matches the actual system."

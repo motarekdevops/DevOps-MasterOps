@@ -1,0 +1,31 @@
+---
+- name: Install Nginx
+  ansible.builtin.apt:
+    name: nginx
+    state: present
+
+- name: Create Nginx vhost configuration from template
+  ansible.builtin.template:
+    src: vhost.conf.j2
+    dest: "/etc/nginx/sites-available/{{ project_name }}"
+    mode: '0644'
+
+- name: Enable Nginx vhost
+  ansible.builtin.file:
+    src: "/etc/nginx/sites-available/{{ project_name }}"
+    dest: "/etc/nginx/sites-enabled/{{ project_name }}"
+    state: link
+
+- name: Remove default nginx config
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+
+- name: Test Nginx configuration
+  ansible.builtin.shell: nginx -t
+  changed_when: false
+
+- name: Reload Nginx
+  ansible.builtin.systemd:
+    name: nginx
+    state: restarted

@@ -1,0 +1,13 @@
+[Unit]
+Description=Spring Boot Application {{ project_name }}
+After=network.target
+
+[Service]
+User={{ ansible_user | default(ansible_env.USER) }}
+Group=www-data
+WorkingDirectory={{ project_path }}/backend
+ExecStart=/usr/bin/java -jar target/*.jar
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

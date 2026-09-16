@@ -1,0 +1,8 @@
+---
+- name: MasterOps System Configuration
+  hosts: all
+  become: true
+
+  roles:
+    - common
+    - docker

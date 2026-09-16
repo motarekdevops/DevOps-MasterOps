@@ -1,0 +1,46 @@
+---
+- name: Ensure Global State Directory Exists
+  ansible.builtin.file:
+    path: /etc/masterops
+    state: directory
+    mode: '0755'
+
+- name: Initialize Global State File
+  ansible.builtin.copy:
+    content: |
+      projects: []
+      installed_tools: []
+    dest: /etc/masterops/state.yaml
+  when: not (ansible_facts['exists_global_state'] | default(false))
+  # Note: We check existence in a separate task usually, but for simplicity here:
+  # In a real role, we'd use 'stat' first.
+
+- name: Check if project already exists
+  ansible.builtin.stat:
+    path: "{{ project_path }}"
+  register: project_dir_stat
+
+- name: Handle Existing Project
+  block:
+    - name: Prompt for Resume
+      ansible.builtin.pause:
+        prompt: "Project '{{ project_name }}' already exists at {{ project_path }}. Do you want to resume/update? (Press Enter for yes, Ctrl+C to abort)"
+
+    - name: Mark as Resuming
+      ansible.builtin.set_fact:
+        is_resuming: true
+  when: project_dir_stat.stat.exists
+
+- name: Initialize Project State File
+  ansible.builtin.copy:
+    content: |
+      project_name: {{ project_name }}
+      created_at: "{{ ansible_date_time.iso8601 }}"
+      status: initializing
+    dest: "{{ project_path }}/.masterops/state.yaml"
+  when: not project_dir_stat.stat.exists
+
+- name: Record project in Global State
+  ansible.builtin.shell: |
+    yq -i ".projects += [\"{{ project_name }}\"] | .projects |= unique" /etc/masterops/state.yaml
+  when: not project_dir_stat.stat.exists

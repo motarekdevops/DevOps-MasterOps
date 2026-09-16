@@ -1,0 +1,79 @@
+.TH MASTEROPS 1 "September 2026" "v0.1.4" "MasterOps User Manual"
+.SH NAME
+masterops \t DevOps bootstrap CLI for infrastructure and application environments.
+.SH SYNOPSIS
+.B masterops
+\fI[COMMAND]\fR
+\fI[OPTIONS]\fR
+.SH DESCRIPTION
+MasterOps is a DevOps bootstrap tool designed to provision real, production-ready application environments on Linux servers. It handles the installation of runtimes, dependencies, services, and web servers (Nginx) in a modular and idempotent way.
+.SH COMMANDS
+.TP
+.B start \fI<project>\fR
+Bootstrap a new framework project (e.g., .NET, Spring Boot, Laravel, Django, Go).
+.TP
+.B status
+Show system-wide and project-specific health and configuration.
+.TP
+.B diff \fI<project>\fR
+Detect configuration and environment drift between the desired state and the actual system.
+.TP
+.B audit
+Run a comprehensive security audit of the server and deployed projects.
+.TP
+.B backup
+Trigger an immediate S3 backup of all projects and configuration.
+.TP
+.B vault \fI<cmd>\fR
+Manage encrypted project secrets using AES-256.
+.TP
+.B upgrade \fI<project>\fR
+Upgrade project configuration version and apply migrations.
+.TP
+.B terraform \fI--start\fR
+Provision AWS infrastructure (VPC, EC2, S3) via Terraform.
+.TP
+.B nginx \fI--start\fR
+Configure Nginx for the server.
+.SH OPTIONS
+.TP
+.B -h, --help
+Display the help message for a command.
+.TP
+.B -v, --version
+Display the MasterOps version.
+.SH EXAMPLES
+.B Create a new project:
+.IP
+masterops start my-app
+.B Check system health:
+.IP
+masterops status
+.B Detect drift in a project:
+.IP
+masterops diff my-app
+.B Run security audit:
+.IP
+masterops audit
+.SH FILES
+.TP
+.B /etc/masterops/state.yaml
+Global system state registry.
+.TP
+.B /var/www/\fI<project>\fR/.masterops/state.yaml
+Project-specific state and configuration.
+.TP
+.B /var/log/masterops/masterops.log
+Structured JSON logs for all operations.
+.SH EXIT STATUS
+.TP
+0
+Success.
+.TP
+1
+Drift detected or a non-critical error occurred.
+.TP
+2
+Invalid arguments or a critical error occurred.
+.SH AUTHOR
+Developed by MoTarek @ DevOpsEngineer.

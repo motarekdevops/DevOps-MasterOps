@@ -1,0 +1,35 @@
+---
+- name: Setup GitHub Actions Workflows
+  block:
+    - name: Create workflows directory
+      ansible.builtin.file:
+        path: "{{ project_path }}/.github/workflows"
+        state: directory
+        owner: "{{ ansible_user | default(ansible_env.USER) }}"
+        mode: '0755'
+
+    - name: Inject Backend Workflow
+      ansible.builtin.copy:
+        src: "/usr/share/masterops/templates/github-actions/backend/{{ backend_fw }}/main.yml"
+        dest: "{{ project_path }}/.github/workflows/backend-ci.yml"
+        owner: "{{ ansible_user | default(ansible_env.USER) }}"
+        mode: '0644'
+      when: backend_fw is defined
+
+    - name: Inject Frontend Workflow
+      ansible.builtin.copy:
+        src: "/usr/share/masterops/templates/github-actions/frontend/{{ frontend_fw }}/main.yml"
+        dest: "{{ project_path }}/.github/workflows/frontend-ci.yml"
+        owner: "{{ ansible_user | default(ansible_env.USER) }}"
+        mode: '0644'
+      when: frontend_fw is defined
+
+- name: Configure Environment File (.env)
+  block:
+    - name: Create basic .env file
+      ansible.builtin.template:
+        src: env.j2
+        dest: "{{ project_path }}/backend/.env"
+        owner: "{{ ansible_user | default(ansible_env.USER) }}"
+        mode: '0600'
+      when: backend_fw is defined
