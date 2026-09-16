@@ -46,7 +46,7 @@ graph TD
 ### 1. Debian Package (Recommended)
 The fastest way to install MasterOps is via the official `.deb` package:
 ```bash
-sudo dpkg -i masterops_0.1.15_amd64.deb
+sudo apt install ./masterops_0.1.15_amd64.deb
 ```
 
 ### 2. Source Installation
