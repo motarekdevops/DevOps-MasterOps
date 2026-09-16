@@ -25,7 +25,7 @@ graph TD
     G[MasterOps] --> H(One Command)
     H --> I[~11 Minutes Total]
     
-    style G fill:#f9f,stroke:#333,stroke-width:4px
+    style G fill:#f5,stroke:#333,stroke-width:4px
     style I fill:#00ff00,stroke:#333,stroke-width:2px
 ```
 
