@@ -40,7 +40,7 @@ graph TD
 ## 📦 Installation
 
 <div align="center">
-  <img src="public/src/WhatsApp Image 2026-09-15 at 4.58.59 PM.jpeg" alt="MasterOps Preview" width="600" style="border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
+  <img src="public/src/MasterOps.png" alt="MasterOps Preview" width="600" style="border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
 </div>
 
 ### 1. Debian Package (Recommended)
